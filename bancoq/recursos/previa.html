@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Prévia</title>
+<style>
+  :root { --tinta: #1d1d1f; --suave: #6b6b70; --borda: #d9d9de; --ok: #1f7a3a; --okfundo: #e8f5ec;
+          --aviso: #a34a00; --avisofundo: #fff1e0; --res: #f4f6fb; --obs: #fbf8ec; }
+  html, body { background: #ffffff; color: var(--tinta); margin: 0; }
+  body { font-family: "Latin Modern Roman", "CMU Serif", "Times New Roman", serif;
+         font-size: 17px; line-height: 1.5; padding: 14px 18px 40px 18px; }
+  .p { margin: 0 0 0.6em 0; }
+  .vazio { color: var(--suave); font-style: italic; }
+  .numero { font-weight: bold; margin-bottom: 4px; }
+  .enunciado { margin-bottom: 0.4em; }
+  ol.alternativas { list-style: none; padding-left: 0; margin: 0.3em 0 0.6em 0; }
+  ol.alternativas > li { display: flex; gap: 8px; align-items: flex-start; padding: 3px 6px;
+                         border-radius: 6px; margin-bottom: 2px; }
+  ol.alternativas > li.correta { background: var(--okfundo); }
+  .rotulo { min-width: 2.1em; font-weight: bold; }
+  .vf { font-family: sans-serif; font-size: 0.85em; padding-top: 0.15em; }
+  .texto-item { flex: 1; min-width: 0; }
+  .texto-item .p:last-child { margin-bottom: 0; }
+  .marca { color: var(--ok); font-weight: bold; font-family: sans-serif; }
+  .comentario { font-family: sans-serif; font-size: 0.82em; color: #44464f; border-left: 3px solid var(--borda);
+                padding-left: 8px; margin-top: 3px; }
+  .resposta, .resolucao, .observacoes { border-radius: 8px; padding: 8px 12px; margin-top: 10px; }
+  .resposta { background: var(--okfundo); }
+  .resolucao { background: var(--res); }
+  .observacoes { background: var(--obs); font-family: sans-serif; font-size: 0.85em; }
+  .titulo { font-family: sans-serif; font-size: 0.78em; font-weight: bold; color: var(--suave);
+            text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 3px; }
+  .info { font-family: sans-serif; font-size: 0.8em; color: var(--suave); }
+  .aviso { background: var(--avisofundo); color: var(--aviso); font-family: sans-serif; font-size: 0.8em;
+           border-radius: 4px; padding: 0 4px; white-space: nowrap; }
+  .mat { overflow-x: auto; overflow-y: hidden; }
+  img.img { display: inline-block; vertical-align: middle; max-width: 100%; }
+  table.tab { border-collapse: collapse; margin: 6px 0; }
+  table.tab td { border: 1px solid var(--borda); padding: 2px 10px; text-align: center; }
+  code { font-size: 0.9em; }
+  .fbox { border: 1px solid var(--tinta); padding: 0 3px; }
+  blockquote { margin: 0.4em 1.5em; }
+  hr.sep { border: none; border-top: 1px dashed var(--borda); margin: 18px 0; }
+  .vazia { color: var(--suave); font-family: sans-serif; font-size: 0.9em; text-align: center; margin-top: 40px; }
+  mjx-container[jax="SVG"][display="true"] { margin: 0.5em 0 !important; }
+  mjx-merror { color: #b00020; }
+</style>
+<script>
+  window.MathJax = {
+    tex: {
+      inlineMath: [['\\(', '\\)']],
+      displayMath: [['\\[', '\\]']],
+      processEscapes: false,
+      processEnvironments: true,
+      macros: /*MACROS*/{}
+    },
+    svg: { fontCache: 'global' },
+    options: { enableMenu: false },
+    startup: {
+      typeset: false,
+      ready: function () {
+        MathJax.startup.defaultReady();
+        window.mjPronto = true;
+        if (window.mjPendente !== undefined) { atualizar(window.mjPendente); }
+      }
+    }
+  };
+  function atualizar(html) {
+    if (!window.mjPronto) { window.mjPendente = html; return; }
+    var el = document.getElementById('conteudo');
+    var y = window.scrollY;
+    MathJax.startup.promise = MathJax.startup.promise.then(function () {
+      MathJax.typesetClear([el]);
+      el.innerHTML = html;
+      return MathJax.typesetPromise([el]);
+    }).catch(function (err) {
+      el.insertAdjacentHTML('beforeend', '<div class="aviso">Erro do MathJax: ' + err.message + '</div>');
+    }).then(function () { window.scrollTo(0, y); });
+  }
+</script>
+<script src="mathjax/tex-svg-full.js"></script>
+</head>
+<body><div id="conteudo"></div></body>
+</html>

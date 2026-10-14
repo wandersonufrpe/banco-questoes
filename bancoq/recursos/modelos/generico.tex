@@ -1,0 +1,78 @@
+% =====================================================================
+% Modelo genérico de prova — Banco de Questões
+%
+% Marcadores substituídos pelo aplicativo:
+%   <<titulo>> <<disciplina>> <<turma>> <<professor>> <<data>>
+%   <<versao>> <<instrucoes>> <<macros>> <<questoes>>
+%
+% O aplicativo escreve as questões com os ambientes e comandos abaixo.
+% Para mudar a aparência da prova, edite só as definições deste arquivo:
+%   \begin{questao}[valor] ... \end{questao}   (o valor é opcional)
+%   \begin{alternativas} \alt ... \end{alternativas}
+%   \begin{afirmativas} \afirmativa ... \end{afirmativas}
+%   \espacoresposta{5cm}     espaço para resposta (questões discursivas)
+%   \respostacurta           linha para a resposta curta
+% =====================================================================
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{enumitem}
+\usepackage[margin=2cm]{geometry}
+
+% ---- preâmbulo e macros do usuário (Configurações) ----
+<<macros>>
+
+% ---- utilidade: #2 só aparece se #1 não estiver vazio ----
+\providecommand{\seexiste}[2]{\if\relax\detokenize{#1}\relax\else#2\fi}
+
+% ---- ambientes e comandos usados pelo aplicativo ----
+\newcounter{questao}
+\newenvironment{questao}[1][]{%
+  \par\addvspace{1.2em}\refstepcounter{questao}%
+  \noindent\textbf{Questão \thequestao}\seexiste{#1}{\ \textit{(valor: #1)}}%
+  \par\nopagebreak\smallskip\noindent\ignorespaces
+}{\par}
+
+\newenvironment{alternativas}%
+  {\begin{enumerate}[label=(\alph*), itemsep=2pt, topsep=4pt]}%
+  {\end{enumerate}}
+\newcommand{\alt}{\item}
+
+\newenvironment{afirmativas}%
+  {\begin{enumerate}[label=(\hspace{1em}), itemsep=2pt, topsep=4pt]}%
+  {\end{enumerate}}
+\newcommand{\afirmativa}{\item}
+
+\newcommand{\espacoresposta}[1]{\par\vspace*{#1}}
+\newcommand{\respostacurta}{\par\medskip\noindent Resposta: \rule{9cm}{0.4pt}\par}
+
+\pagestyle{plain}
+
+\begin{document}
+
+\begin{center}
+  {\Large\bfseries <<titulo>>}\par\smallskip
+  \seexiste{<<disciplina>>}{{\large <<disciplina>>}\par}
+\end{center}
+
+\noindent
+\seexiste{<<professor>>}{Professor(a): <<professor>>\hfill}%
+\seexiste{<<turma>>}{Turma: <<turma>>\hfill}%
+\seexiste{<<data>>}{Data: <<data>>}%
+\seexiste{<<versao>>}{\hfill\fbox{\textbf{Versão <<versao>>}}}
+\par\bigskip
+\noindent Nome: \rule{0.62\linewidth}{0.4pt}\hfill Matrícula: \rule{0.2\linewidth}{0.4pt}
+\par\medskip
+
+\seexiste{<<instrucoes>>}{%
+  \noindent\fbox{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule\relax}{%
+    \textbf{Instruções.} <<instrucoes>>}}\par}
+
+\medskip\hrule\medskip
+
+<<questoes>>
+
+\end{document}
