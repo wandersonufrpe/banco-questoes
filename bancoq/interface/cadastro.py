@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
 from ..caminhos import pasta_temporaria
 from ..contexto import Contexto
 from ..nucleo.checagem import interpretar_checagem, preparar_checagem
+from ..nucleo.duplicadas import procurar_parecidas
 from ..nucleo.entidades import TIPOS, Item, Questao
 from ..nucleo.previa_html import html_questao
 from ..nucleo.macros import extrair_macros
@@ -21,7 +22,7 @@ from .categorias import SeletorCategoria
 from .editor_latex import EditorLatex
 from .itens import EditorItens
 from . import tarefas
-from .dialogos import DialogoErroLatex
+from .dialogos import DialogoDuplicada, DialogoErroLatex
 from .previa import PreviaWeb, resolvedor_imagens
 from .previa_exata import PainelPreviaExata
 from .tags import CampoTags
@@ -578,6 +579,18 @@ class TelaCadastro(QWidget):
         tarefas.executar(comp.executar, fim, falhou, self)
 
     def _etapa_duplicadas(self, q: Questao, categoria_nova, e_nova: bool) -> None:
+        """Procura questões com enunciado parecido; se houver, mostra lado a lado."""
+        enunciado_mudou = self.questao_carregada is None or q.enunciado != self.questao_carregada.enunciado
+        if self.ctx.config.checar_duplicadas_ao_salvar and enunciado_mudou:
+            achadas = procurar_parecidas(q.enunciado, self.ctx.repo.enunciados(),
+                                         self.ctx.config.limite_duplicadas, excluir_id=q.id)
+            if achadas:
+                d = DialogoDuplicada(self.ctx, q, achadas, self)
+                d.exec()
+                if not d.salvar_mesmo_assim:
+                    self._cancelar_salvamento()
+                    self.l_status.setText("Não salva (questão parecida no banco).")
+                    return
         self._gravar(q, categoria_nova, e_nova)
 
     def _cancelar_salvamento(self) -> None:

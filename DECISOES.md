@@ -241,3 +241,52 @@ está registrada aqui, por etapa.
 - **Gravação:** acontece só no botão "Gravar no banco" (com confirmação) e numa
   única transação. Se houver erro, nada é gravado. As categorias novas escolhidas
   na revisão são criadas nesse momento.
+
+## Etapa 6: trava, backups e duplicadas
+
+- **Trava (`banco.trava`):** JSON com o nome do computador, o usuário, o horário,
+  o PID e um identificador de sessão. Ao abrir:
+  - sem trava: o app cria uma e abre normalmente;
+  - trava de **outro computador**: aviso com as opções "Abrir só para leitura",
+    "Abrir assim mesmo" (a trava passa a ser deste computador) e "Cancelar";
+  - trava **deste computador** com o app fechado (sobrou de uma queda): é
+    reaproveitada sem perguntar;
+  - trava deste computador com o processo ainda vivo (o banco aberto em outra
+    janela): o mesmo aviso.
+  A trava só é removida pela sessão que a criou. Assim, fechar uma janela antiga
+  não apaga a trava de outra abertura. Um arquivo de trava ilegível (por exemplo,
+  conflito de sincronização) é tratado como de "computador desconhecido".
+  Limitação: o rclone sincroniza de tempos em tempos, então a trava só chega ao
+  outro computador depois da próxima sincronização.
+- **Somente leitura:** o SQLite é aberto com `mode=ro`. Os botões de salvar,
+  excluir, gravar importação e salvar montagem ficam desativados, e as
+  configurações do banco também. Nesse modo, nem a trava nem o backup automático
+  são gravados.
+- **Backups:** ficam em `<banco>/backups/` (dentro da pasta sincronizada, para
+  existirem em todos os computadores), com o nome
+  `backup-AAAAMMDD-HHMMSS-<computador>.zip`. Cada backup contém
+  `banco.sqlite3` (cópia consistente pela API de backup do SQLite),
+  `configuracoes.json`, `modelos/` e `midia/`; ficam de fora `backups/` e a
+  trava. O backup automático roda em segundo plano logo após abrir o banco (não
+  ao criar um banco novo). Só os últimos N são mantidos (padrão 10, configurável
+  em Configurações > Banco).
+- **Restaurar:** em Arquivo > Backups…. Antes de restaurar, o app grava um backup
+  do estado atual (`…-antes-de-restaurar.zip`). O conteúdo do .zip é conferido
+  (precisa ter `banco.sqlite3` íntegro, sem caminhos fora da pasta). O banco e os
+  modelos são substituídos; arquivos de mídia que faltam são copiados (os
+  existentes têm o mesmo nome-hash). Depois, as telas são recarregadas.
+- **Exportar/importar o banco inteiro:** a exportação gera um .zip com o mesmo
+  conteúdo do backup. A importação extrai o .zip numa pasta **nova** (nunca por
+  cima de um banco existente) e oferece abrir o banco importado.
+- **Duplicadas:** a normalização remove comentários, marcadores de imagem,
+  `\begin`/`\end`, nomes de comandos (`\textbf`, `\int`, `\,`…), chaves, `$`, `~`,
+  `&`, espaços e acentos, e passa tudo para minúsculas. Os caracteres escapados
+  (`\%`, `\$`…) ficam. A comparação usa `rapidfuzz.fuzz.ratio` (0–100) contra
+  todos os enunciados do banco. O limite padrão é 85%, configurável. Enunciados
+  muito curtos (menos de 12 caracteres depois de normalizados) não são
+  comparados, para evitar falsos positivos como "Calcule:".
+- **Quando a checagem de duplicadas roda:** ao salvar uma questão nova, ou uma
+  existente cujo enunciado mudou. Depois da checagem de LaTeX, o diálogo mostra
+  lado a lado a questão nova e as parecidas (com a porcentagem), com as opções
+  "Salvar mesmo assim" e "Voltar sem salvar". Na revisão da importação, as
+  possíveis duplicadas aparecem marcadas com ⚠ e o número da questão parecida.

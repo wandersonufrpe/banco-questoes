@@ -30,6 +30,7 @@ class Contexto:
         self.repo = Repositorio(banco, self.midia)
         self.config = ConfigBanco.carregar(banco.pasta)
         self.sinais = Sinais()
+        self.trava_sessao: str | None = None
         self._tex: InfoTex | None = None
         self._tex_procurado = False
 

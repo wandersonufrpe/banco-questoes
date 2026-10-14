@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
 )
 
 from ..contexto import Contexto
+from ..nucleo.duplicadas import procurar_parecidas
 from ..nucleo.entidades import TIPOS, Item, Questao
 from ..nucleo.importador import definicoes_do_preambulo, importar, padrao_por_nome, padroes
 from ..nucleo.latex_html import texto_simples
@@ -287,10 +288,15 @@ class TelaImportacao(QWidget):
         res = importar(self._texto_origem, padrao_por_nome(nome) if nome else None,
                        self._pasta_origem, self.ctx.midia)
         self.entradas = []
+        existentes = self.ctx.repo.enunciados()
         for qi in res.questoes:
             q = qi.para_questao()
             q.fonte = self._fonte_padrao
-            self.entradas.append(Entrada(q, avisos=list(qi.avisos)))
+            avisos = list(qi.avisos)
+            achadas = procurar_parecidas(q.enunciado, existentes, self.ctx.config.limite_duplicadas, maximo=1)
+            if achadas:
+                avisos.append(f"Possível duplicada da questão nº {achadas[0][0]} do banco ({achadas[0][1]:g}%).")
+            self.entradas.append(Entrada(q, avisos=avisos))
         self.e_fonte.setText(self._fonte_padrao)
         texto = f"{len(self.entradas)} questão(ões) encontrada(s) — padrão: {res.padrao}"
         if res.avisos:

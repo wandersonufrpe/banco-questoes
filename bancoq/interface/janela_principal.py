@@ -85,6 +85,10 @@ class JanelaPrincipal(QMainWindow):
         m.addSeparator()
         self._acao(m, "Importar prova em LaTeX (.tex)…", self._importar_tex)
         m.addSeparator()
+        self._acao(m, "Backups…", self._backups)
+        self._acao(m, "Exportar banco inteiro (.zip)…", self._exportar_banco)
+        self._acao(m, "Importar banco inteiro (.zip)…", self.aplicativo.importar_banco_zip)
+        m.addSeparator()
         self._acao(m, "Sair", self.close, QKeySequence.StandardKey.Quit)
 
         self.menu_banco = self.menuBar().addMenu("&Banco")
@@ -102,6 +106,16 @@ class JanelaPrincipal(QMainWindow):
         a.triggered.connect(func)
         menu.addAction(a)
         return a
+
+    def _backups(self) -> None:
+        from .backups import DialogoBackups
+
+        DialogoBackups(self.ctx, self.aplicativo, self).exec()
+
+    def _exportar_banco(self) -> None:
+        from .backups import exportar_banco
+
+        exportar_banco(self.ctx, self)
 
     def _importar_tex(self) -> None:
         self.abas.setCurrentWidget(self.importacao)

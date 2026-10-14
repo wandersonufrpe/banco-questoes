@@ -68,22 +68,27 @@ class Aplicativo:
             if self.abrir(d.pasta, criar=d.criar):
                 return True
 
-    def abrir(self, pasta: Path, criar: bool = False) -> bool:
+    def abrir(self, pasta: Path, criar: bool = False, fazer_backup: bool = True) -> bool:
         from PySide6.QtWidgets import QMessageBox
 
         from .contexto import Contexto
         from .interface.janela_principal import JanelaPrincipal
         from .nucleo.banco import Banco
+        from .nucleo.trava import criar_trava
 
         try:
-            banco = Banco.criar(pasta) if criar else self._abrir_existente(pasta)
+            banco = Banco.criar(pasta) if criar else self._abrir_existente(Path(pasta))
         except Exception as e:  # noqa: BLE001
-            QMessageBox.critical(None, "Banco de Questões", f"Não foi possível abrir o banco em\n{pasta}\n\n{e}")
+            QMessageBox.critical(self.janela, "Banco de Questões", f"Não foi possível abrir o banco em\n{pasta}\n\n{e}")
             return False
         if banco is None:
             return False
         ctx = Contexto(banco, self.local)
-        self._apos_abrir(ctx)
+        if not banco.somente_leitura:
+            try:
+                ctx.trava_sessao = criar_trava(banco.pasta).sessao
+            except OSError:
+                ctx.trava_sessao = None
         self.local.registrar_banco(str(Path(pasta)))
         ctx.salvar_local()
         janela = JanelaPrincipal(ctx, self)
@@ -92,18 +97,100 @@ class Aplicativo:
         janela.show()
         if anterior is not None:
             anterior.fechar_para_trocar()
+        if fazer_backup and not criar and not banco.somente_leitura:
+            self._backup_em_segundo_plano(ctx, janela)
         return True
 
     def _abrir_existente(self, pasta: Path):
+        """Confere a trava; devolve o Banco (talvez só leitura) ou None se o usuário cancelar."""
+        from .interface.backups import ABRIR_LEITURA, CANCELAR, perguntar_trava
         from .nucleo.banco import Banco
+        from .nucleo.trava import situacao
 
-        return Banco(pasta)
+        estado, info = situacao(pasta)
+        somente_leitura = False
+        if estado in ("outro_computador", "aberta_aqui"):
+            escolha = perguntar_trava(info, pasta, self.janela, mesmo_computador=estado == "aberta_aqui")
+            if escolha == CANCELAR:
+                return None
+            somente_leitura = escolha == ABRIR_LEITURA
+        return Banco(pasta, somente_leitura=somente_leitura)
 
-    def _apos_abrir(self, ctx) -> None:
-        """Tarefas feitas logo depois de abrir o banco."""
+    def _backup_em_segundo_plano(self, ctx, janela) -> None:
+        from .interface import tarefas
+        from .nucleo.backup import criar_backup
+
+        def ok(caminho) -> None:
+            if self.janela is janela:
+                janela.statusBar().showMessage(f"Backup automático criado: {caminho.name}", 8000)
+
+        def falhou(rastro: str) -> None:
+            if self.janela is janela:
+                janela.statusBar().showMessage("Não foi possível criar o backup automático.", 15000)
+
+        tarefas.executar(lambda: criar_backup(ctx.banco, ctx.config.num_backups), ok, falhou)
 
     def banco_fechado(self, janela) -> None:
-        """Chamado quando uma janela de banco fecha."""
+        """Chamado quando uma janela de banco fecha: libera a trava desta sessão."""
+        from .nucleo.trava import remover_trava
+
+        sessao = getattr(janela.ctx, "trava_sessao", None)
+        if sessao:
+            remover_trava(janela.ctx.banco.pasta, sessao)
+            janela.ctx.trava_sessao = None
+
+    def reabrir(self) -> None:
+        """Abre de novo o banco atual (após restaurar um backup)."""
+        if self.janela is None:
+            return
+        pasta = self.janela.ctx.banco.pasta
+        self.app.setQuitOnLastWindowClosed(False)
+        try:
+            self.abrir(pasta, criar=False, fazer_backup=False)
+        finally:
+            self.app.setQuitOnLastWindowClosed(True)
+
+    def restaurar_backup(self, arquivo) -> None:
+        from PySide6.QtWidgets import QMessageBox
+
+        from .nucleo.backup import restaurar_backup
+
+        j = self.janela
+        if j is None or not j.pode_fechar():
+            return
+        try:
+            seguranca = restaurar_backup(j.ctx.banco, arquivo, j.ctx.config.num_backups)
+        except Exception as e:  # noqa: BLE001
+            QMessageBox.critical(j, "Restaurar backup", f"O backup não foi restaurado:\n{e}")
+            return
+        self.reabrir()
+        QMessageBox.information(self.janela, "Restaurar backup",
+                                f"Backup restaurado. O estado anterior foi guardado em\n{seguranca.name}")
+
+    def importar_banco_zip(self) -> None:
+        from PySide6.QtWidgets import QFileDialog, QMessageBox
+
+        from .nucleo.backup import importar_banco_zip
+
+        if self.janela is not None and not self.janela.pode_fechar():
+            return
+        arq, _ = QFileDialog.getOpenFileName(self.janela, "Importar banco (.zip)", "", "Arquivo zip (*.zip)")
+        if not arq:
+            return
+        pasta = QFileDialog.getExistingDirectory(self.janela, "Pasta (vazia) onde o banco importado vai ficar")
+        if not pasta:
+            return
+        destino = Path(pasta)
+        if any(destino.iterdir()):
+            destino = destino / Path(arq).stem
+        try:
+            importar_banco_zip(Path(arq), destino)
+        except Exception as e:  # noqa: BLE001
+            QMessageBox.critical(self.janela, "Importar banco", f"Não foi possível importar:\n{e}")
+            return
+        r = QMessageBox.question(self.janela, "Importar banco", f"Banco importado em\n{destino}\n\nAbrir agora?")
+        if r == QMessageBox.StandardButton.Yes:
+            self._trocar(destino, criar=False)
 
     # -- troca de banco -----------------------------------------------------------------------
     def abrir_outro_banco(self) -> None:
