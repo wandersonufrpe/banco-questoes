@@ -43,7 +43,22 @@ class JanelaPrincipal(QMainWindow):
 
     # -- telas adicionadas nas etapas seguintes ------------------------------------------
     def _criar_telas_extras(self) -> None:
-        pass
+        from .tela_banco import TelaBanco
+
+        self.banco = TelaBanco(self.ctx)
+        self.abas.addTab(self.banco, "Banco")
+        self.banco.pediu_editar.connect(lambda q: self._abrir_no_cadastro(q, como_nova=False))
+        self.banco.pediu_duplicar.connect(lambda q: self._abrir_no_cadastro(q, como_nova=True))
+        self.banco.questoes_excluidas.connect(self.cadastro.questoes_excluidas)
+
+    def _abrir_no_cadastro(self, q, como_nova: bool) -> None:
+        if not como_nova and self.cadastro.questao_id == q.id and not self.cadastro.modificado():
+            self.abas.setCurrentWidget(self.cadastro)
+            return
+        if not self.cadastro.pode_descartar():
+            return
+        self.cadastro.carregar_questao(q, como_nova=como_nova)
+        self.abas.setCurrentWidget(self.cadastro)
 
     # -- menus ------------------------------------------------------------------------------
     def _criar_menus(self) -> None:
@@ -55,6 +70,8 @@ class JanelaPrincipal(QMainWindow):
         self._acao(m, "Sair", self.close, QKeySequence.StandardKey.Quit)
 
         self.menu_banco = self.menuBar().addMenu("&Banco")
+        self._acao(self.menu_banco, "Categorias…", self.banco.gerenciar_categorias)
+        self._acao(self.menu_banco, "Tags…", self.banco.gerenciar_tags)
         self.menu_ajuda = self.menuBar().addMenu("A&juda")
         self._acao(self.menu_ajuda, "Sobre…", self._sobre)
 

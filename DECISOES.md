@@ -71,3 +71,31 @@ está registrada aqui, por etapa.
   exata]", e o nome do comando aparece ao passar o mouse.
 - **Observações** aparecem na prévia (num quadro "não vão para a prova"), mas nunca
   na prova nem nos gabaritos.
+
+## Etapa 2: filtros, busca e gerenciamento
+
+- **Busca textual:** FTS5 com o tokenizador `unicode61 remove_diacritics 2`
+  (ignora acentos e maiúsculas). Cada palavra digitada é procurada como prefixo, e
+  todas precisam aparecer (E lógico). O índice cobre o enunciado, as
+  alternativas/afirmativas e seus comentários, a resposta curta, a resolução e as
+  observações. Se o SQLite de alguma máquina não tiver FTS5, a busca passa a usar
+  `LIKE` sem acentos. O índice é marcado como desatualizado e reconstruído na
+  próxima abertura numa máquina com FTS5.
+- **Filtro de fonte:** "contém", sem diferenciar acentos e maiúsculas. **Ano:**
+  intervalo "de/até". **Dificuldade:** intervalo de 1 a 5.
+- **Filtro "só sem categoria"** para achar questões ainda não classificadas.
+- **Excluir categoria não apaga questões:** as questões e as subcategorias sobem
+  para a categoria-mãe (ou ficam sem categoria, se for de primeiro nível).
+- **Mesclar categorias:** as questões e as subcategorias da origem vão para o
+  destino. Subcategorias com o mesmo nome são mescladas também, recursivamente.
+  **Mover para…** usa a mesma regra quando já existe uma irmã com o mesmo nome.
+- **Renomear para um nome já existente** (categoria no mesmo nível, ou tag) é
+  recusado com a sugestão de usar "Mesclar".
+- **Tags** não diferenciam maiúsculas ("Limites" = "limites"). Prevalece a grafia
+  da primeira vez em que a tag foi criada.
+- **Ações nos gerenciadores** (renomear, mover, mesclar, excluir) são gravadas
+  quando a ação é confirmada no próprio diálogo. Funcionam como o botão "salvar"
+  dessas operações.
+- **Exclusão de questões:** pede confirmação e aceita várias de uma vez. Se a
+  questão excluída estiver aberta no cadastro, o conteúdo continua lá como uma
+  questão nova não salva.

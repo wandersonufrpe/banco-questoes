@@ -389,6 +389,15 @@ class TelaCadastro(QWidget):
             self.questao_carregada = q
             self._preencher(q)
 
+    def questoes_excluidas(self, ids: list[int]) -> None:
+        """Se a questão em edição foi excluída, o conteúdo fica como questão nova."""
+        if self.questao_id is not None and self.questao_id in ids:
+            self.questao_id = None
+            self.questao_carregada = None
+            self._base = ()
+            self._atualizar_cabecalho()
+            self.l_titulo.setText("Nova questão (a original foi excluída do banco)")
+
     def pode_descartar(self) -> bool:
         """Pergunta o que fazer se houver alterações não salvas. True = pode seguir."""
         if not self.modificado():
