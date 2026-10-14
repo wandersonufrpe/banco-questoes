@@ -437,15 +437,17 @@ Resultados em `empacotamento\saida\`: `dist\BancoQuestoes\BancoQuestoes.exe`
 ### GitHub Actions (gera os executáveis sem precisar de Linux e Windows)
 
 O workflow `.github/workflows/build.yml` gera os dois executáveis num servidor do
-GitHub e roda o autoteste em cada um:
+GitHub, roda o autoteste em cada um e publica na página **Releases** do
+repositório os que passarem (`.AppImage` e `.tar.gz` para Linux, `.zip` para
+Windows):
 
-- **Publicar uma versão:** crie uma tag começando com `v` (por exemplo,
-  `git tag v1.0.1 && git push origin v1.0.1`, ou pela página *Releases > Draft a
-  new release* do GitHub). No fim, a página **Releases** do repositório mostra o
-  `.AppImage`, o `.tar.gz` (Linux) e o `.zip` (Windows) para baixar. Só entram os
-  executáveis que passaram no autoteste.
-- **Só testar o build:** na aba *Actions*, escolha *Build* > *Run workflow*. Os
-  arquivos ficam em *Artifacts*, na página da execução (por 90 dias).
+- **Publicar uma versão nova:** mude `__version__` em `bancoq/__init__.py`
+  (por exemplo, para `"1.0.1"`) e envie para a branch `main`. O workflow cria a
+  tag `v1.0.1` e a Release. Enviar uma tag `v*` também publica.
+- **Pela página do GitHub:** aba *Actions* > *Build* > *Run workflow*. Com
+  "Publicar uma Release" marcado, publica a versão atual (se ela ainda não
+  existir); sem marcar, só gera os arquivos em *Artifacts*, na página da
+  execução (por 90 dias).
 
 O GitHub não executa o aplicativo: ele é um programa de desktop. Você baixa o
 executável da Release e abre no seu computador.
