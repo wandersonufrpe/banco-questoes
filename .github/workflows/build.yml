@@ -1,5 +1,6 @@
 # Gera os executáveis de Linux e Windows (o PyInstaller não faz build cruzado).
 # Roda ao publicar uma tag v* ou manualmente (aba Actions > Build > Run workflow).
+# Com uma tag v*, os executáveis que passarem no autoteste são publicados numa Release.
 name: Build
 
 on:
@@ -58,3 +59,34 @@ jobs:
                 -ArgumentList "--autoteste", "--relatorio", "autoteste.txt" -Wait -PassThru
           Get-Content autoteste.txt
           if ($p.ExitCode -ne 0) { exit 1 }
+
+  release:
+    # Só com tag v*: publica na página de Releases os executáveis que passaram no autoteste
+    if: ${{ !cancelled() && startsWith(github.ref, 'refs/tags/v') }}
+    needs: [linux, windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - if: needs.linux.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: BancoQuestoes-linux
+          path: arquivos
+      - if: needs.windows.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: BancoQuestoes-windows
+          path: arquivos
+      - if: needs.linux.result == 'success' || needs.windows.result == 'success'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: arquivos/*
+          fail_on_unmatched_files: false
+          body: |
+            Executáveis do Banco de Questões (não é preciso instalar Python).
+
+            - **Linux:** baixe o `.AppImage`, dê permissão de execução (`chmod +x`) e abra; ou extraia o `.tar.gz` e rode `BancoQuestoes/BancoQuestoes`.
+            - **Windows:** extraia o `.zip` e abra `BancoQuestoes\BancoQuestoes.exe`.
+
+            Para a prévia exata e o PDF, instale o TeX (veja a seção 2 do README).

@@ -434,11 +434,21 @@ empacotamento\build_windows.bat
 Resultados em `empacotamento\saida\`: `dist\BancoQuestoes\BancoQuestoes.exe`
 (a pasta portátil) e `BancoQuestoes-<versão>-windows-x64.zip`.
 
-### GitHub Actions
+### GitHub Actions (gera os executáveis sem precisar de Linux e Windows)
 
-O workflow `.github/workflows/build.yml` gera os dois executáveis (e roda o
-autoteste em cada um) quando você publica uma tag `v*` ou o dispara à mão na aba
-*Actions*. Os arquivos ficam em *Artifacts*, na página da execução.
+O workflow `.github/workflows/build.yml` gera os dois executáveis num servidor do
+GitHub e roda o autoteste em cada um:
+
+- **Publicar uma versão:** crie uma tag começando com `v` (por exemplo,
+  `git tag v1.0.1 && git push origin v1.0.1`, ou pela página *Releases > Draft a
+  new release* do GitHub). No fim, a página **Releases** do repositório mostra o
+  `.AppImage`, o `.tar.gz` (Linux) e o `.zip` (Windows) para baixar. Só entram os
+  executáveis que passaram no autoteste.
+- **Só testar o build:** na aba *Actions*, escolha *Build* > *Run workflow*. Os
+  arquivos ficam em *Artifacts*, na página da execução (por 90 dias).
+
+O GitHub não executa o aplicativo: ele é um programa de desktop. Você baixa o
+executável da Release e abre no seu computador.
 
 ---
 
