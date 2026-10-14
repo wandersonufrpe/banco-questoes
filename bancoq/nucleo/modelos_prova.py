@@ -104,13 +104,16 @@ def posicao_begin_document(modelo: str) -> int:
     return -1
 
 
-def preambulo(modelo: str, macros: str) -> str:
-    """Parte do modelo antes de \\begin{document}, com as macros do usuário."""
+def preambulo(modelo: str, macros: str, valores: dict[str, str] | None = None) -> str:
+    """Parte do modelo antes de \\begin{document}, com as macros do usuário.
+
+    ``valores`` preenche outros marcadores que o preâmbulo use (ex.: cabeçalho de página).
+    """
     i = posicao_begin_document(modelo)
     cabeca = modelo if i < 0 else modelo[:i]
     if "macros" not in marcadores_usados(cabeca):
         cabeca += "\n" + macros + "\n"
-    return preencher(cabeca, {"macros": macros})
+    return preencher(cabeca, {**(valores or {}), "macros": macros})
 
 
 def validar_modelo(texto: str) -> list[str]:

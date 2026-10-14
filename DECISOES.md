@@ -151,3 +151,49 @@ está registrada aqui, por etapa.
   salvar/confirmar. Ao salvar ou importar, o modelo é validado: o app avisa se
   faltarem marcadores ou as definições de `questao`, `alternativas`,
   `afirmativas`, `\alt`, `\afirmativa`, `\espacoresposta` e `\respostacurta`.
+
+## Etapa 4: montagem, versões e exportação
+
+- **Montagens salvas** ficam na tabela `montagens` do banco, em JSON: cabeçalho,
+  questões (com valor, espaço e origem), regras, versões, opções e semente. Ao
+  reabrir, questões que foram excluídas do banco saem da montagem com um aviso.
+- **Valor da questão** é texto livre (ex.: `1,5`), usado como argumento opcional
+  de `\begin{questao}[1,5]`. O total aparece na tela quando todos os valores são
+  números.
+- **Espaço para resposta** em centímetros, só para questões discursivas
+  (`\espacoresposta{4cm}`). Zero significa nenhum espaço extra.
+- **Sorteio:** cada regra tem um identificador. O botão "Sortear" refaz o sorteio
+  de todas as regras e mantém as questões escolhidas à mão. "Ressortear" troca uma
+  questão sorteada por outra da mesma regra que ainda não esteja na prova. Questões
+  escolhidas à mão não são ressorteadas. A mesma questão nunca entra duas vezes.
+  O sorteio das questões usa o acaso comum; quem fica registrado é o resultado
+  (a lista de questões), e não uma semente.
+- **Versões e semente:** cada versão usa um gerador aleatório próprio, inicializado
+  com `"bancoq:<semente>:<índice da versão>"`. Assim, a mesma montagem (mesmas
+  questões na mesma ordem, mesmas opções, mesma semente) gera sempre as mesmas
+  versões, em qualquer computador. Com "embaralhar questões" ligado, todas as
+  versões são embaralhadas, inclusive a A. O app tenta não repetir a mesma ordem
+  em duas versões. As afirmativas de V/F também são embaralhadas pela opção
+  "embaralhar alternativas" e respeitam o "não embaralhar" da questão. A semente
+  é gerada ao criar a montagem, pode ser editada ou trocada ("Nova semente") e
+  fica registrada no comentário de cada `.tex`, no gabarito e no `montagem.json`.
+- **Máximo de 26 versões** (A a Z). Com uma só versão, `<<versao>>` fica vazio e
+  o modelo genérico não mostra "Versão".
+- **Arquivos exportados:** `prova_X.tex/.pdf` e `resolucao_X.tex/.pdf` para cada
+  versão; um único `gabarito.tex/.pdf`, com um resumo lado a lado das respostas de
+  múltipla escolha e V/F de todas as versões e uma tabela completa por versão
+  (número na prova, número no banco, resposta, valor); `midia/` com as imagens; e
+  `montagem.json` (semente, ordem das questões e das alternativas, respostas).
+  Questões discursivas aparecem no gabarito como "ver resolução".
+- **Resolução e gabarito usam o preâmbulo do modelo escolhido** (com as macros).
+  Assim, os ambientes personalizados valem também nesses documentos, sem precisar
+  de outro modelo.
+- **Cabeçalho em LaTeX:** os campos do cabeçalho entram no `.tex` como estão, sem
+  escapar caracteres especiais. Assim é possível usar matemática ou formatação.
+- **Compilação dos PDFs:** duas passadas por documento (para referências como
+  `LastPage` em modelos personalizados). Os arquivos auxiliares são apagados quando
+  a compilação dá certo; em caso de erro, o `.log` fica para consulta. A
+  exportação roda em segundo plano, com barra de progresso e botão de cancelar.
+- **Pasta de saída:** os arquivos são gravados diretamente na pasta escolhida. Se
+  já houver arquivos com os mesmos nomes, o app pede confirmação antes de
+  substituir. Exportar não grava nada no banco.

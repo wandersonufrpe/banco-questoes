@@ -55,6 +55,12 @@ class JanelaPrincipal(QMainWindow):
         self.banco.pediu_duplicar.connect(lambda q: self._abrir_no_cadastro(q, como_nova=True))
         self.banco.questoes_excluidas.connect(self.cadastro.questoes_excluidas)
 
+        from .montagem import TelaMontagem
+
+        self.montagem = TelaMontagem(self.ctx)
+        self.abas.addTab(self.montagem, "Montagem de prova")
+        self.telas_extras.append(self.montagem)
+
     def _abrir_no_cadastro(self, q, como_nova: bool) -> None:
         if not como_nova and self.cadastro.questao_id == q.id and not self.cadastro.modificado():
             self.abas.setCurrentWidget(self.cadastro)
