@@ -1,0 +1,43 @@
+% Prova fictícia no formato da classe exam (dados de teste)
+\documentclass[addpoints]{exam}
+\usepackage{amsmath,amssymb}
+\newcommand{\R}{\mathbb{R}}
+\DeclareMathOperator{\sen}{sen}
+\newcommand{\abs}[1]{\left|#1\right|}
+\printanswers
+\begin{document}
+\begin{center}\textbf{Prova fictícia}\end{center}
+\begin{questions}
+
+\question[2] Quanto vale $\displaystyle\lim_{x\to 0}\frac{\sen x}{x}$?
+\begin{choices}
+  \choice $0$
+  \CorrectChoice $1$
+  \choice $\infty$
+  \choice Não existe.
+\end{choices}
+\begin{solution}
+Limite fundamental trigonométrico.
+\end{solution}
+
+\question[3] Considere $f\colon\R\to\R$, $f(x)=x^2$.
+\begin{parts}
+\part Calcule $f'(x)$.
+\part Esboce o gráfico.
+\end{parts}
+\begin{solutionorbox}[2in]
+$f'(x) = 2x$; parábola com vértice na origem.
+\end{solutionorbox}
+
+% \question Esta questão está comentada e não deve ser importada.
+
+\titledquestion{Bônus}[1] O valor de $2+2$ é \fillin[$4$][2cm].
+
+\question Assinale as corretas.
+\begin{oneparchoices}
+\CorrectChoice $\abs{-1}=1$ \choice $\abs{-1}=-1$
+\end{oneparchoices}
+\vspace{2cm}
+
+\end{questions}
+\end{document}

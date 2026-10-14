@@ -197,3 +197,47 @@ está registrada aqui, por etapa.
 - **Pasta de saída:** os arquivos são gravados diretamente na pasta escolhida. Se
   já houver arquivos com os mesmos nomes, o app pede confirmação antes de
   substituir. Exportar não grava nada no banco.
+
+## Etapa 5: importação de .tex
+
+- **Padrões registráveis:** cada padrão é uma classe em
+  `bancoq/nucleo/importador/` que implementa `pontuar(corpo)` e `separar(corpo)`
+  e se registra com `@registrar`. No modo "Automático" vence o padrão com a maior
+  pontuação. Padrões incluídos:
+  - **Classe exam:** `\question`, `\titledquestion`, ambientes `choices`,
+    `oneparchoices`, `checkboxes`, `oneparcheckboxes`, `\choice` e
+    `\CorrectChoice`, `solution` (e as variantes `solutionorbox`/`lines`/…), e
+    `\fillin[resposta]` (vira questão de resposta curta). `parts`/`\part` são
+    convertidos para `enumerate`, porque esses ambientes só existem na classe exam.
+  - **Lista enumerate:** cada `\item` de primeiro nível é uma questão. Uma lista
+    aninhada no **fim** do item vira alternativas quando tem rótulos com letras ou
+    itens curtos. Uma lista no meio do texto, ou com itens longos, fica no
+    enunciado (questão discursiva).
+  - **Títulos "Questão N":** `\textbf{Questão 1}`, `\section*{Questão 2}` ou
+    "Questão 3." no início da linha.
+  - **Separador manual:** linhas contendo só `%%%`. Sem separador, todo o texto
+    vira uma questão, que pode ser dividida na revisão.
+- **Reconhecimento dentro de cada questão:** a alternativa correta é marcada por
+  `\CorrectChoice`, `\correta`, `\certa`, `\checkmark` ou `(correta)`, ou ainda
+  por `\item[*]`/`\item[\checkmark]`. Itens começados por `(V)`/`(F)`/`( )`
+  indicam verdadeiro ou falso. A resolução vem dos ambientes `solution`,
+  `resolucao`, `solucao`, `proof` ou de um parágrafo "Resolução:"/"Solução:".
+- **Comentários** (`%`) são removidos antes da análise; uma questão comentada não
+  é importada.
+- **Imagens:** `\includegraphics{arquivo}` é procurado na pasta do `.tex`, com ou
+  sem extensão. A imagem vira um marcador `[[img:…]]` (`width=0.4\textwidth`
+  vira 0.4; medidas em cm são convertidas aproximadamente) e fica pendente até a
+  gravação. `figure`, `\caption` e `\label` são retirados, e o conteúdo fica.
+- **Macros do arquivo:** as definições (`\newcommand`, `\DeclareMathOperator`,
+  `\def`…) do preâmbulo importado que ainda não estão no seu preâmbulo aparecem
+  numa faixa amarela. O botão "Ver e adicionar às minhas macros…" as acrescenta a
+  Configurações, só depois de confirmar.
+- **Revisão:** na lista de questões é possível marcar quais entram, juntar com a
+  próxima, dividir no cursor (o texto depois do cursor vira outra questão e leva
+  junto as alternativas e a resolução), excluir, editar o tipo, o enunciado, as
+  alternativas, a correta e a resolução, e aplicar categoria, tags, fonte, ano e
+  dificuldade a várias questões selecionadas de uma vez. A fonte sugerida é o
+  nome do arquivo.
+- **Gravação:** acontece só no botão "Gravar no banco" (com confirmação) e numa
+  única transação. Se houver erro, nada é gravado. As categorias novas escolhidas
+  na revisão são criadas nesse momento.

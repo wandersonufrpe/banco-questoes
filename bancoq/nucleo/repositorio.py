@@ -81,85 +81,92 @@ class Repositorio:
     # =====================================================================
     def salvar_questao(self, q: Questao, categoria_nova: CategoriaNova | None = None) -> int:
         """Grava a questão (nova ou existente) numa única transação."""
+        return self.salvar_questoes([(q, categoria_nova)])[0]
+
+    def salvar_questoes(self, lista: list[tuple[Questao, CategoriaNova | None]]) -> list[int]:
+        """Grava várias questões numa única transação (tudo ou nada)."""
+        with self.banco.conectar(escrita=True) as c:
+            return [self._salvar(c, q, cat) for q, cat in lista]
+
+    def _salvar(self, c: sqlite3.Connection, q: Questao, categoria_nova: CategoriaNova | None) -> int:
         q.tipo = q.tipo if q.tipo in ("discursiva", "multipla", "vf", "curta") else "discursiva"
         agora = agora_iso()
-        with self.banco.conectar(escrita=True) as c:
-            if categoria_nova is not None and categoria_nova.nomes:
-                q.categoria_id = self._garantir_caminho(c, categoria_nova.pai_id, categoria_nova.nomes)
-            if q.categoria_id is not None and not c.execute(
-                "SELECT 1 FROM categorias WHERE id=?", (q.categoria_id,)
-            ).fetchone():
-                q.categoria_id = None
-            valores = (
-                q.tipo, q.enunciado, q.resposta_curta if q.tipo == "curta" else "",
-                q.resolucao, q.observacoes, int(min(5, max(1, q.dificuldade))),
-                q.fonte.strip(), q.ano, q.categoria_id, int(bool(q.nao_embaralhar)),
+        if categoria_nova is not None and categoria_nova.nomes:
+            q.categoria_id = self._garantir_caminho(c, categoria_nova.pai_id, categoria_nova.nomes)
+        if q.categoria_id is not None and not c.execute(
+            "SELECT 1 FROM categorias WHERE id=?", (q.categoria_id,)
+        ).fetchone():
+            q.categoria_id = None
+        valores = (
+            q.tipo, q.enunciado, q.resposta_curta if q.tipo == "curta" else "",
+            q.resolucao, q.observacoes, int(min(5, max(1, q.dificuldade))),
+            q.fonte.strip(), q.ano, q.categoria_id, int(bool(q.nao_embaralhar)),
+        )
+        if q.id is None:
+            cur = c.execute(
+                "INSERT INTO questoes (tipo, enunciado, resposta_curta, resolucao, observacoes,"
+                " dificuldade, fonte, ano, categoria_id, nao_embaralhar, criada_em, alterada_em)"
+                " VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                (*valores, agora, agora),
             )
-            if q.id is None:
-                cur = c.execute(
-                    "INSERT INTO questoes (tipo, enunciado, resposta_curta, resolucao, observacoes,"
-                    " dificuldade, fonte, ano, categoria_id, nao_embaralhar, criada_em, alterada_em)"
-                    " VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
-                    (*valores, agora, agora),
-                )
-                q.id = cur.lastrowid
-                q.criada_em = agora
-            else:
-                cur = c.execute(
-                    "UPDATE questoes SET tipo=?, enunciado=?, resposta_curta=?, resolucao=?,"
-                    " observacoes=?, dificuldade=?, fonte=?, ano=?, categoria_id=?,"
-                    " nao_embaralhar=?, alterada_em=? WHERE id=?",
-                    (*valores, agora, q.id),
-                )
-                if cur.rowcount == 0:
-                    raise ErroBanco(f"A questão {q.id} não existe mais no banco.")
-            q.alterada_em = agora
+            q.id = cur.lastrowid
+            q.criada_em = agora
+        else:
+            cur = c.execute(
+                "UPDATE questoes SET tipo=?, enunciado=?, resposta_curta=?, resolucao=?,"
+                " observacoes=?, dificuldade=?, fonte=?, ano=?, categoria_id=?,"
+                " nao_embaralhar=?, alterada_em=? WHERE id=?",
+                (*valores, agora, q.id),
+            )
+            if cur.rowcount == 0:
+                raise ErroBanco(f"A questão {q.id} não existe mais no banco.")
+        q.alterada_em = agora
 
-            # itens (alternativas/afirmativas)
-            c.execute("DELETE FROM itens WHERE questao_id=?", (q.id,))
-            itens = q.itens_validos()
-            for ordem, item in enumerate(itens):
-                cur = c.execute(
-                    "INSERT INTO itens (questao_id, ordem, texto, correta, comentario) VALUES (?,?,?,?,?)",
-                    (q.id, ordem, item.texto, int(bool(item.correta)), item.comentario),
-                )
-                item.id = cur.lastrowid
-            if not q.usa_itens:
-                q.itens = []
+        # itens (alternativas/afirmativas)
+        c.execute("DELETE FROM itens WHERE questao_id=?", (q.id,))
+        itens = q.itens_validos()
+        for ordem, item in enumerate(itens):
+            cur = c.execute(
+                "INSERT INTO itens (questao_id, ordem, texto, correta, comentario) VALUES (?,?,?,?,?)",
+                (q.id, ordem, item.texto, int(bool(item.correta)), item.comentario),
+            )
+            item.id = cur.lastrowid
+        if not q.usa_itens:
+            q.itens = []
 
-            # tags
-            c.execute("DELETE FROM questao_tags WHERE questao_id=?", (q.id,))
-            nomes_tags = []
-            for nome in q.tags:
-                nome = nome.strip()
-                if nome and nome.casefold() not in {n.casefold() for n in nomes_tags}:
-                    nomes_tags.append(nome)
-            for nome in nomes_tags:
-                tag_id = self._garantir_tag(c, nome)
-                c.execute("INSERT OR IGNORE INTO questao_tags VALUES (?,?)", (q.id, tag_id))
-            q.tags = nomes_tags
+        # tags
+        c.execute("DELETE FROM questao_tags WHERE questao_id=?", (q.id,))
+        nomes_tags = []
+        for nome in q.tags:
+            nome = nome.strip()
+            if nome and nome.casefold() not in {n.casefold() for n in nomes_tags}:
+                nomes_tags.append(nome)
+        for nome in nomes_tags:
+            tag_id = self._garantir_tag(c, nome)
+            c.execute("INSERT OR IGNORE INTO questao_tags VALUES (?,?)", (q.id, tag_id))
+        q.tags = nomes_tags
 
-            # imagens: grava as pendentes em midia/ e registra a ligação
-            c.execute("DELETE FROM imagens WHERE questao_id=?", (q.id,))
-            textos_questao = [q.enunciado, q.resolucao, q.resposta_curta]
-            ligacoes: list[tuple[int | None, str]] = []
-            for t in textos_questao:
-                ligacoes += [(None, i) for i in ids_no_texto(t)]
-            for item in itens:
-                ligacoes += [(item.id, i) for i in ids_no_texto(item.texto + "\n" + item.comentario)]
-            self.midia.gravar_pendentes({i for _, i in ligacoes})
-            vistos = set()
-            for item_id, ident in ligacoes:
-                p = self.midia.caminho(ident)
-                if p is None or (item_id, p.name) in vistos:
-                    continue
-                vistos.add((item_id, p.name))
-                c.execute(
-                    "INSERT INTO imagens (questao_id, item_id, arquivo) VALUES (?,?,?)",
-                    (q.id, item_id, p.name),
-                )
+        # imagens: grava as pendentes em midia/ e registra a ligação
+        c.execute("DELETE FROM imagens WHERE questao_id=?", (q.id,))
+        textos_questao = [q.enunciado, q.resolucao, q.resposta_curta]
+        ligacoes: list[tuple[int | None, str]] = []
+        for t in textos_questao:
+            ligacoes += [(None, i) for i in ids_no_texto(t)]
+        for item in itens:
+            ligacoes += [(item.id, i) for i in ids_no_texto(item.texto + "\n" + item.comentario)]
+        self.midia.gravar_pendentes({i for _, i in ligacoes})
+        vistos = set()
+        for item_id, ident in ligacoes:
+            p = self.midia.caminho(ident)
+            if p is None or (item_id, p.name) in vistos:
+                continue
+            vistos.add((item_id, p.name))
+            c.execute(
+                "INSERT INTO imagens (questao_id, item_id, arquivo) VALUES (?,?,?)",
+                (q.id, item_id, p.name),
+            )
 
-            self._atualizar_fts(c, q.id)
+        self._atualizar_fts(c, q.id)
         return q.id
 
     def _atualizar_fts(self, c: sqlite3.Connection, qid: int) -> None:

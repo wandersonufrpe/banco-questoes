@@ -1,0 +1,32 @@
+% Prova fictícia com enumerate aninhado (dados de teste)
+\documentclass{article}
+\usepackage{enumitem,graphicx}
+\begin{document}
+\section*{Lista fictícia}
+Instruções que não são questão.
+\begin{enumerate}
+\item Calcule $\int_0^1 x\,dx$.
+  \begin{enumerate}[label=(\alph*)]
+    \item $0$
+    \item $\frac12$ \correta
+    \item $1$
+  \end{enumerate}
+
+\item Prove que existem infinitos primos.
+
+  \textbf{Resolução:} Suponha que haja finitos primos $p_1,\dots,p_n$ e considere $p_1\cdots p_n+1$.
+
+\item Julgue em verdadeiro ou falso:
+  \begin{itemize}
+    \item (V) Todo número par é divisível por $2$.
+    \item (F) $1$ é primo.
+  \end{itemize}
+
+\item Observe a figura \includegraphics[width=0.4\textwidth]{figura_teste} e responda.
+  \begin{enumerate}
+    \item Sub-item longo que descreve uma parte da questão discursiva, com bastante texto para não parecer alternativa \begin{itemize}\item interno\end{itemize}
+    \item Outra parte.
+  \end{enumerate}
+  Explique o raciocínio.
+\end{enumerate}
+\end{document}

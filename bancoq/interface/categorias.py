@@ -237,8 +237,10 @@ class SeletorCategoria(QWidget):
             if self.nova.pai_id is not None:
                 base = self.repo.caminhos_categorias().get(self.nova.pai_id, "") + " > "
             self.campo.setText(base + " > ".join(self.nova.nomes) + "  (nova)")
+            self.campo.setCursorPosition(0)
         elif self.categoria_id is not None:
             self.campo.setText(self.repo.caminhos_categorias().get(self.categoria_id, "(categoria excluída)"))
+            self.campo.setCursorPosition(0)
         else:
             self.campo.clear()
 

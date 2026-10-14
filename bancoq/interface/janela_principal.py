@@ -61,6 +61,12 @@ class JanelaPrincipal(QMainWindow):
         self.abas.addTab(self.montagem, "Montagem de prova")
         self.telas_extras.append(self.montagem)
 
+        from .importacao import TelaImportacao
+
+        self.importacao = TelaImportacao(self.ctx)
+        self.abas.addTab(self.importacao, "Importação")
+        self.telas_extras.append(self.importacao)
+
     def _abrir_no_cadastro(self, q, como_nova: bool) -> None:
         if not como_nova and self.cadastro.questao_id == q.id and not self.cadastro.modificado():
             self.abas.setCurrentWidget(self.cadastro)
@@ -76,6 +82,8 @@ class JanelaPrincipal(QMainWindow):
         self._acao(m, "Criar novo banco…", self.aplicativo.criar_outro_banco)
         self._acao(m, "Abrir outro banco…", self.aplicativo.abrir_outro_banco)
         self.menu_arquivo = m
+        m.addSeparator()
+        self._acao(m, "Importar prova em LaTeX (.tex)…", self._importar_tex)
         m.addSeparator()
         self._acao(m, "Sair", self.close, QKeySequence.StandardKey.Quit)
 
@@ -94,6 +102,10 @@ class JanelaPrincipal(QMainWindow):
         a.triggered.connect(func)
         menu.addAction(a)
         return a
+
+    def _importar_tex(self) -> None:
+        self.abas.setCurrentWidget(self.importacao)
+        self.importacao.abrir_arquivo()
 
     def abrir_configuracoes(self, aba: int = 0) -> None:
         from .configuracoes import DialogoConfiguracoes
