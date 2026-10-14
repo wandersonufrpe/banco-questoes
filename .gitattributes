@@ -1,0 +1,3 @@
+*.bat text eol=crlf
+*.sh text eol=lf
+empacotamento/appimage/AppRun text eol=lf

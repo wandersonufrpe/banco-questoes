@@ -69,8 +69,9 @@ def test_versao_unica_nao_mostra_versao(repo, prova):
 def test_exportacao_gera_arquivos_e_midia(repo, prova, tmp_path):
     m, qs, ident = prova
     saida = tmp_path / "saida"
-    rel = Exportacao(m, qs, texto_generico(), MACROS, repo.midia, saida, None, False).executar()
-    assert not rel.erros
+    rel = Exportacao(m, qs, texto_generico(), MACROS, repo.midia, saida, None, True).executar()
+    assert not rel.erros and not rel.pdfs
+    assert any("TeX não encontrado" in a for a in rel.avisos)   # sem TeX: só os .tex
     for nome in ("prova_A.tex", "prova_B.tex", "resolucao_A.tex", "resolucao_B.tex", "gabarito.tex", "montagem.json"):
         assert (saida / nome).exists(), nome
     assert (saida / "midia" / f"{ident}.png").exists()

@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Banco de Questões
+Comment=Cadastro de questões de matemática e montagem de provas em LaTeX
+Exec=BancoQuestoes
+Icon=bancoquestoes
+Categories=Education;
+Terminal=false

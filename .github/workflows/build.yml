@@ -1,0 +1,60 @@
+# Gera os executáveis de Linux e Windows (o PyInstaller não faz build cruzado).
+# Roda ao publicar uma tag v* ou manualmente (aba Actions > Build > Run workflow).
+name: Build
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+jobs:
+  linux:
+    # Ubuntu 22.04 (glibc 2.35) para o executável rodar também em sistemas um pouco mais antigos
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Bibliotecas do Qt/QtWebEngine, Xvfb e TeX (para os testes)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libegl1 libgl1 libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 libxcb-keysyms1 libxcb-shape0 \
+            libxcb-xinerama0 libxcb-randr0 libxcb-render-util0 libxcb-image0 libnss3 libxcomposite1 \
+            libxdamage1 libxrandr2 libxtst6 libxshmfence1 libgbm1 libasound2 libfuse2 xvfb \
+            texlive-latex-base texlive-latex-recommended texlive-latex-extra texlive-lang-portuguese \
+            texlive-fonts-recommended
+      - name: Build (testes, PyInstaller, tar.gz e AppImage)
+        run: ./empacotamento/build_linux.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BancoQuestoes-linux
+          path: |
+            empacotamento/saida/*.tar.gz
+            empacotamento/saida/*.AppImage
+      - name: Autoteste do executável
+        run: xvfb-run -a ./empacotamento/saida/dist/BancoQuestoes/BancoQuestoes --autoteste
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build (testes, PyInstaller e zip)
+        shell: cmd
+        run: empacotamento\build_windows.bat
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BancoQuestoes-windows
+          path: empacotamento/saida/*.zip
+      - name: Autoteste do executável
+        shell: pwsh
+        run: |
+          $env:QT_QPA_PLATFORM = "offscreen"
+          $p = Start-Process -FilePath "empacotamento\saida\dist\BancoQuestoes\BancoQuestoes.exe" `
+                -ArgumentList "--autoteste", "--relatorio", "autoteste.txt" -Wait -PassThru
+          Get-Content autoteste.txt
+          if ($p.ExitCode -ne 0) { exit 1 }

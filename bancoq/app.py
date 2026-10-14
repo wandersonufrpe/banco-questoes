@@ -227,6 +227,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="bancoq", description="Banco de Questões de Matemática")
     parser.add_argument("--banco", help="pasta do banco a abrir")
     parser.add_argument("--autoteste", action="store_true", help="testa o executável e sai")
+    parser.add_argument("--relatorio", help="arquivo onde gravar o resultado do autoteste")
     args, resto = parser.parse_known_args(argv[1:])
 
     _preparar_ambiente()

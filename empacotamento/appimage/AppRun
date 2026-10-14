@@ -1,0 +1,4 @@
+#!/bin/sh
+# Ponto de entrada da AppImage do Banco de Questões.
+AQUI="$(dirname "$(readlink -f "$0")")"
+exec "$AQUI/usr/lib/BancoQuestoes/BancoQuestoes" "$@"

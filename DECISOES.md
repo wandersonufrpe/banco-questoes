@@ -290,3 +290,31 @@ está registrada aqui, por etapa.
   lado a lado a questão nova e as parecidas (com a porcentagem), com as opções
   "Salvar mesmo assim" e "Voltar sem salvar". Na revisão da importação, as
   possíveis duplicadas aparecem marcadas com ⚠ e o número da questão parecida.
+
+## Etapa 7: empacotamento
+
+- **PyInstaller no modo pasta ("onedir")**, e não arquivo único: o arquivo único
+  teria de extrair cerca de 450 MB numa pasta temporária a cada abertura, o que
+  deixaria o app lento para abrir. No Linux, a pasta vai num `.tar.gz` e numa
+  **AppImage** (gerada com o `appimagetool`, runtime "type2", que não depende do
+  `libfuse2` do sistema na maioria das distribuições). No Windows, vai numa pasta
+  com `BancoQuestoes.exe` e num `.zip`.
+- **Poda do Qt:** o PySide6 arrasta módulos que o app não usa (3D, Charts,
+  Multimedia, QML/Quick Controls, Location…), os plugins QML e as traduções de
+  dezenas de idiomas. O `.spec` retira essas partes e mantém só as traduções em
+  português e os locales `pt-BR`/`en-US` do Chromium. A pasta caiu de 656 MB para
+  cerca de 475 MB; a AppImage tem cerca de 190 MB. O QtWebEngine continua
+  completo (ele precisa de QtQml, QtQuick, QtPositioning e QtWebChannel).
+- **`--autoteste`:** opção escondida do executável que confere, numa pasta
+  temporária, o SQLite/FTS5, o PyMuPDF, o rapidfuzz, as traduções, o MathJax no
+  QtWebEngine e (se houver TeX) a exportação com PDF. Ela é usada nos scripts e no
+  GitHub Actions; com `--relatorio arquivo.txt` grava o resultado (no Windows o
+  `.exe` não tem console).
+- **Rede:** o executável foi testado sob `strace` durante o autoteste. As únicas
+  conexões foram a sockets locais (X11 e D-Bus), sem nenhuma conexão TCP/UDP.
+- **Compatibilidade no Linux:** o executável depende da glibc da máquina onde foi
+  gerado. O workflow do GitHub gera no Ubuntu 22.04 (glibc 2.35), que roda no
+  Linux Mint 21 e 22. O build feito neste ambiente usou o Ubuntu 24.04
+  (glibc 2.39), que roda no Mint 22.
+- **Python do build:** o workflow do GitHub usa o Python 3.12. O build e os
+  testes locais usaram o 3.13.
