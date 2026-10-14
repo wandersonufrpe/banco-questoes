@@ -203,8 +203,6 @@ class ModeloQuestoes(QAbstractTableModel):
         self.linhas = linhas
         self.resumos = [texto_simples(r.enunciado, 140) for r in linhas]
         self.caminhos = caminhos
-        ids = {r.id for r in linhas}
-        self.marcadas &= ids
         self.endResetModel()
 
     def rowCount(self, parent=QModelIndex()) -> int:  # noqa: N802
@@ -269,7 +267,7 @@ class ModeloQuestoes(QAbstractTableModel):
 
     def marcar_todas(self, marcar: bool) -> None:
         if marcar:
-            self.marcadas = {r.id for r in self.linhas}
+            self.marcadas |= {r.id for r in self.linhas}
         else:
             self.marcadas.clear()
         if self.linhas:

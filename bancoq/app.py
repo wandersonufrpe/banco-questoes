@@ -120,13 +120,18 @@ class Aplicativo:
         from .interface import tarefas
         from .nucleo.backup import criar_backup
 
-        def ok(caminho) -> None:
+        def avisar(texto: str, ms: int) -> None:
             if self.janela is janela:
-                janela.statusBar().showMessage(f"Backup automático criado: {caminho.name}", 8000)
+                try:
+                    janela.statusBar().showMessage(texto, ms)
+                except RuntimeError:  # janela já fechada
+                    pass
+
+        def ok(caminho) -> None:
+            avisar(f"Backup automático criado: {caminho.name}", 8000)
 
         def falhou(rastro: str) -> None:
-            if self.janela is janela:
-                janela.statusBar().showMessage("Não foi possível criar o backup automático.", 15000)
+            avisar("Não foi possível criar o backup automático.", 15000)
 
         tarefas.executar(lambda: criar_backup(ctx.banco, ctx.config.num_backups), ok, falhou)
 
@@ -138,6 +143,8 @@ class Aplicativo:
         if sessao:
             remover_trava(janela.ctx.banco.pasta, sessao)
             janela.ctx.trava_sessao = None
+        if self.janela is janela:
+            self.janela = None
 
     def reabrir(self) -> None:
         """Abre de novo o banco atual (após restaurar um backup)."""

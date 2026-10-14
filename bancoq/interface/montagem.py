@@ -494,6 +494,7 @@ class TelaMontagem(QWidget):
         self._config_mudou()
         self._carregar_no_formulario()
         self._recarregar_banco()
+        self._marcar_base()
 
     # =========================================================================
     # estado
@@ -606,7 +607,12 @@ class TelaMontagem(QWidget):
 
     def _atualizar_marcadas(self) -> None:
         n = len(self.modelo_banco.marcadas)
-        self.l_marcadas.setText(f"{self.modelo_banco.rowCount()} no filtro · {n} marcada(s)")
+        visiveis = {r.id for r in self.modelo_banco.linhas}
+        fora = len(self.modelo_banco.marcadas - visiveis)
+        texto = f"{self.modelo_banco.rowCount()} no filtro · {n} marcada(s)"
+        if fora:
+            texto += f" ({fora} fora do filtro atual)"
+        self.l_marcadas.setText(texto)
         self.b_enviar.setEnabled(n > 0)
 
     def _previa_banco(self, atual, _anterior=None) -> None:
@@ -630,8 +636,11 @@ class TelaMontagem(QWidget):
         self.abas.setCurrentIndex(0)
 
     def _adicionar_marcadas(self) -> None:
-        ordem = [r.id for r in self.modelo_banco.linhas if r.id in self.modelo_banco.marcadas]
-        self._adicionar(ordem)
+        marcadas = self.modelo_banco.marcadas
+        ordem = [r.id for r in self.modelo_banco.linhas if r.id in marcadas]
+        ordem += sorted(marcadas - set(ordem))          # marcadas em filtros anteriores
+        existentes = self._questoes(ordem)               # ignora questões excluídas nesse meio-tempo
+        self._adicionar([q for q in ordem if q in existentes])
         self.modelo_banco.marcar_todas(False)
 
     def _adicionar_duplo_clique(self, indice) -> None:
