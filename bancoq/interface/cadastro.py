@@ -5,12 +5,14 @@ from __future__ import annotations
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
-    QCheckBox, QComboBox, QCompleter, QFormLayout, QFrame, QGridLayout, QHBoxLayout, QLabel,
+    QProgressDialog, QCheckBox, QComboBox, QCompleter, QFormLayout, QFrame, QGridLayout, QHBoxLayout, QLabel,
     QLineEdit, QMessageBox, QPushButton, QScrollArea, QSizePolicy, QSpinBox, QSplitter,
     QTabWidget, QVBoxLayout, QWidget,
 )
 
+from ..caminhos import pasta_temporaria
 from ..contexto import Contexto
+from ..nucleo.checagem import interpretar_checagem, preparar_checagem
 from ..nucleo.entidades import TIPOS, Item, Questao
 from ..nucleo.previa_html import html_questao
 from ..nucleo.macros import extrair_macros
@@ -18,7 +20,10 @@ from ..nucleo.repositorio import CategoriaNova
 from .categorias import SeletorCategoria
 from .editor_latex import EditorLatex
 from .itens import EditorItens
+from . import tarefas
+from .dialogos import DialogoErroLatex
 from .previa import PreviaWeb, resolvedor_imagens
+from .previa_exata import PainelPreviaExata
 from .tags import CampoTags
 
 NOMES_DIFICULDADE = ["1 — muito fácil", "2 — fácil", "3 — média", "4 — difícil", "5 — muito difícil"]
@@ -76,6 +81,7 @@ class TelaCadastro(QWidget):
 
         # -- formulário ---------------------------------------------------------------------
         rolagem = QScrollArea()
+        self.rolagem = rolagem
         rolagem.setWidgetResizable(True)
         rolagem.setFrameShape(QFrame.Shape.NoFrame)
         form = QWidget()
@@ -171,6 +177,8 @@ class TelaCadastro(QWidget):
         self.abas_previa = QTabWidget()
         self.previa = PreviaWeb()
         self.abas_previa.addTab(self.previa, "Prévia rápida")
+        self.previa_exata = PainelPreviaExata(ctx, lambda: self._questao_limpa()[0])
+        self.abas_previa.addTab(self.previa_exata, "Prévia exata")
         divisor.addWidget(self.abas_previa)
         divisor.setStretchFactor(0, 3)
         divisor.setStretchFactor(1, 2)
@@ -291,6 +299,7 @@ class TelaCadastro(QWidget):
         if self._carregando:
             return
         self.timer_previa.start()
+        self.previa_exata.marcar_desatualizada()
         self.l_modificado.setVisible(self.modificado())
         self.l_status.clear()
         self.estado_mudou.emit()
@@ -419,6 +428,8 @@ class TelaCadastro(QWidget):
     # =========================================================================
     def aplicar_config(self) -> None:
         self.previa.definir_macros(extrair_macros(self.ctx.config.preambulo))
+        if hasattr(self, "previa_exata"):
+            self.previa_exata.atualizar_disponibilidade()
 
     def atualizar_previa(self) -> None:
         q, _ = self.questao_do_formulario()
@@ -482,21 +493,89 @@ class TelaCadastro(QWidget):
             return caixa.clickedButton() is salvar
         return True
 
+    def _questao_limpa(self) -> tuple[Questao, CategoriaNova | None]:
+        """Questão do formulário sem as alternativas totalmente vazias."""
+        q, categoria_nova = self.questao_do_formulario()
+        self._mapa_itens = [k for k, i in enumerate(q.itens) if not item_vazio(i) or i.correta]
+        q.itens = [q.itens[k] for k in self._mapa_itens]
+        return q, categoria_nova
+
+    def focar_campo(self, chave: str | None) -> None:
+        alvo = None
+        if chave == "enunciado":
+            alvo = self.enunciado
+        elif chave == "resolucao":
+            alvo = self.resolucao
+        elif chave == "resposta":
+            alvo = self.resposta
+        elif chave and chave.startswith("item:"):
+            _, i, parte = chave.split(":")
+            mapa = getattr(self, "_mapa_itens", [])
+            k = mapa[int(i)] if int(i) < len(mapa) else int(i)
+            if k < len(self.itens.linhas):
+                linha = self.itens.linhas[k]
+                alvo = linha.texto if parte == "texto" else linha.comentario
+        if alvo is not None:
+            self.rolagem.ensureWidgetVisible(alvo)
+            alvo.setFocus()
+
     def salvar(self, e_nova: bool = False) -> None:
         if self._salvando:
             return
         if self.ctx.somente_leitura:
             QMessageBox.information(self, "Salvar", "O banco está aberto somente para leitura.")
             return
-        q, categoria_nova = self.questao_do_formulario()
-        q.itens = [i for i in q.itens if not item_vazio(i) or i.correta]
+        q, categoria_nova = self._questao_limpa()
         if not self._validar(q):
             return
         self._salvando = True
         self._etapa_latex(q, categoria_nova, e_nova)
 
     def _etapa_latex(self, q: Questao, categoria_nova, e_nova: bool) -> None:
-        self._etapa_duplicadas(q, categoria_nova, e_nova)
+        """Compila todos os campos em segundo plano; se houver erro, o usuário decide."""
+        info = self.ctx.tex()
+        if not self.ctx.config.checar_latex_ao_salvar or info is None:
+            self._etapa_duplicadas(q, categoria_nova, e_nova)
+            return
+        limite = self.ctx.local.tempo_limite_previa
+        try:
+            comp, doc = preparar_checagem(q, self.ctx.texto_modelo(), self.ctx.config.preambulo,
+                                          self.ctx.midia, info, limite, pasta_temporaria())
+        except OSError:
+            self._etapa_duplicadas(q, categoria_nova, e_nova)
+            return
+        prog = QProgressDialog("Verificando o LaTeX da questão…", "Cancelar", 0, 0, self)
+        prog.setWindowTitle("Salvar")
+        prog.setWindowModality(Qt.WindowModality.WindowModal)
+        prog.setMinimumDuration(0)
+        prog.canceled.connect(comp.cancelar)
+        prog.show()
+
+        def fim(res) -> None:
+            prog.canceled.disconnect()
+            prog.close()
+            r = interpretar_checagem(res, doc)
+            if r.ok:
+                self._etapa_duplicadas(q, categoria_nova, e_nova)
+                return
+            if r.cancelado:
+                self._cancelar_salvamento()
+                self.l_status.setText("Salvamento cancelado.")
+                return
+            d = DialogoErroLatex(r, limite, self)
+            d.exec()
+            if d.salvar_mesmo_assim:
+                self._etapa_duplicadas(q, categoria_nova, e_nova)
+            else:
+                self._cancelar_salvamento()
+                self.focar_campo(r.campo_chave)
+
+        def falhou(rastro: str) -> None:
+            prog.close()
+            self._cancelar_salvamento()
+            QMessageBox.critical(self, "Salvar", f"Erro inesperado na checagem de LaTeX:\n{rastro[-1500:]}")
+
+        tarefas.executar(comp.executar, fim, falhou, self)
 
     def _etapa_duplicadas(self, q: Questao, categoria_nova, e_nova: bool) -> None:
         self._gravar(q, categoria_nova, e_nova)

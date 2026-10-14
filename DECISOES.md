@@ -99,3 +99,55 @@ está registrada aqui, por etapa.
 - **Exclusão de questões:** pede confirmação e aceita várias de uma vez. Se a
   questão excluída estiver aberta no cadastro, o conteúdo continua lá como uma
   questão nova não salva.
+
+## Etapa 3: macros, prévia exata e checagem ao salvar
+
+- **Onde fica o preâmbulo/macros:** em `configuracoes.json` do banco, porque as
+  macros fazem parte do conteúdo das questões e precisam valer em todos os
+  computadores. Ele entra no lugar de `<<macros>>` no modelo de prova.
+- **Macros na prévia rápida:** `\newcommand`, `\renewcommand`, `\providecommand`
+  (com ou sem `*`, com número de argumentos e valor padrão), `\DeclareMathOperator`
+  (e `*`) e `\def` simples são lidos do preâmbulo e passados ao MathJax
+  (`tex.macros`). Pacotes e outros comandos são ignorados na prévia rápida.
+  Macros não definidas aparecem em vermelho na prévia rápida.
+- **Marcadores dentro de comentários** (`% <<macros>>`) não são substituídos.
+  Assim o modelo pode documentar os próprios marcadores.
+- **Motor de compilação:** usa o `pdflatex` diretamente. Se ele não for achado e o
+  `latexmk` for, usa `latexmk -pdf`. A busca segue esta ordem: caminho
+  configurado (arquivo ou pasta), `PATH`, e os locais usuais do MiKTeX e do TeX
+  Live no Windows (`%LOCALAPPDATA%\Programs\MiKTeX`, `C:\Program Files\MiKTeX`,
+  `C:\texlive\20xx\bin\windows`) e no Linux (`/usr/bin`, `/usr/local/texlive`).
+- **Segurança:** além de nunca passar `--shell-escape`, o shell-escape é desligado
+  explicitamente: `-no-shell-escape` no TeX Live e `--disable-write18` no MiKTeX
+  (detectado pela saída de `--version`). Também são usados
+  `-interaction=nonstopmode`, `-halt-on-error` e `openout_any=p`. No Windows o
+  processo roda sem janela de console. No tempo limite, a árvore de processos é
+  encerrada (grupo de processos no Linux, `taskkill /T` no Windows).
+- **Tempos limite:** 30 s para prévia/checagem e 180 s para cada PDF da
+  exportação, configuráveis por máquina.
+- **Prévia exata:** compila, com o preâmbulo do **modelo padrão** e as macros, a
+  questão como ela sai na prova. Logo abaixo vêm a resposta, os comentários das
+  alternativas e a resolução. As páginas viram imagens (PyMuPDF, 150 dpi), com as
+  margens em branco cortadas. O botão "Compilar prévia exata" não compila
+  automaticamente, e um aviso indica quando a questão mudou depois da última
+  compilação.
+- **Checagem ao salvar:** um único documento contém todos os campos LaTeX da
+  questão (enunciado, alternativas/afirmativas, comentários, resposta esperada,
+  resolução), cada um em linhas conhecidas. Como o `-halt-on-error` para no
+  primeiro erro, o app mostra um erro por vez. O campo é achado pela linha `l.N`
+  do log. Em erros sem número de linha (por exemplo "Runaway argument"), o trecho
+  citado pelo TeX é procurado no documento. Erros antes de `\begin{document}` são
+  atribuídos ao preâmbulo/macros. A mensagem original aparece junto com uma
+  explicação em português e o trecho perto do erro, e o log completo pode ser
+  aberto. "Corrigir" leva o cursor ao campo com problema.
+- **A checagem pode ser desligada** em Configurações > LaTeX. Sem TeX instalado,
+  ela é pulada silenciosamente; a barra de status mostra "TeX não encontrado".
+- **Comandos extras nas resoluções** (`\marcacorreta`, `\marcavf`, `\comentario`,
+  `\respostaesperada`, `\respostaalternativa`, `\semresolucao`, ambiente
+  `resolucao`) são definidos com `\providecommand`. Para mudar a aparência, basta
+  redefini-los nas macros ou no modelo.
+- **Modelos de prova:** criados, editados, importados, duplicados e excluídos em
+  Configurações > Modelos de prova, cada ação com seu próprio botão de
+  salvar/confirmar. Ao salvar ou importar, o modelo é validado: o app avisa se
+  faltarem marcadores ou as definições de `questao`, `alternativas`,
+  `afirmativas`, `\alt`, `\afirmativa`, `\espacoresposta` e `\respostacurta`.

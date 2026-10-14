@@ -59,16 +59,56 @@ def nome_arquivo_valido(nome: str) -> str:
     return nome
 
 
+def _inicio_comentario(linha: str) -> int:
+    i = 0
+    while i < len(linha):
+        if linha[i] == "\\":
+            i += 2
+            continue
+        if linha[i] == "%":
+            return i
+        i += 1
+    return len(linha)
+
+
 def preencher(modelo: str, valores: dict[str, str]) -> str:
-    """Substitui os marcadores; marcadores sem valor viram texto vazio."""
-    return RE_MARCADOR.sub(lambda m: valores.get(m.group(1), ""), modelo)
+    """Substitui os marcadores; marcadores sem valor viram texto vazio.
+
+    Marcadores dentro de comentários (depois de ``%``) são deixados como estão.
+    """
+    saida = []
+    for linha in modelo.split("\n"):
+        corte = _inicio_comentario(linha)
+        codigo, comentario = linha[:corte], linha[corte:]
+        codigo = RE_MARCADOR.sub(lambda m: valores.get(m.group(1), ""), codigo)
+        saida.append(codigo + comentario)
+    return "\n".join(saida)
+
+
+def marcadores_usados(modelo: str) -> set[str]:
+    """Marcadores presentes fora de comentários."""
+    usados = set()
+    for linha in modelo.split("\n"):
+        usados |= {m.group(1) for m in RE_MARCADOR.finditer(linha[:_inicio_comentario(linha)])}
+    return usados
+
+
+def posicao_begin_document(modelo: str) -> int:
+    """Posição do primeiro \\begin{document} fora de comentários (-1 se não houver)."""
+    pos = 0
+    for linha in modelo.split("\n"):
+        j = linha.find("\\begin{document}")
+        if 0 <= j < _inicio_comentario(linha):
+            return pos + j
+        pos += len(linha) + 1
+    return -1
 
 
 def preambulo(modelo: str, macros: str) -> str:
     """Parte do modelo antes de \\begin{document}, com as macros do usuário."""
-    i = modelo.find("\\begin{document}")
+    i = posicao_begin_document(modelo)
     cabeca = modelo if i < 0 else modelo[:i]
-    if "<<macros>>" not in cabeca:
+    if "macros" not in marcadores_usados(cabeca):
         cabeca += "\n" + macros + "\n"
     return preencher(cabeca, {"macros": macros})
 
@@ -80,9 +120,10 @@ def validar_modelo(texto: str) -> list[str]:
         avisos.append("Falta \\documentclass.")
     if "\\begin{document}" not in texto or "\\end{document}" not in texto:
         avisos.append("Falta \\begin{document} ou \\end{document}.")
-    if "<<questoes>>" not in texto:
+    usados = marcadores_usados(texto)
+    if "questoes" not in usados:
         avisos.append("Falta o marcador <<questoes>> (onde as questões entram).")
-    if "<<macros>>" not in texto:
+    if "macros" not in usados:
         avisos.append("Falta o marcador <<macros>> (suas macros serão postas antes de \\begin{document}).")
     for amb in AMBIENTES_USADOS:
         if not re.search(r"\\(?:new|renew|provide)environment\*?\s*\{" + amb + r"\}", texto):
@@ -90,7 +131,7 @@ def validar_modelo(texto: str) -> list[str]:
     for cmd in COMANDOS_USADOS:
         if not re.search(r"\\(?:(?:new|renew|provide)command\*?\s*\{?\s*|def\s*|let\s*)\\" + cmd + r"(?![A-Za-z])", texto):
             avisos.append(f"O comando \\{cmd} não está definido no modelo.")
-    desconhecidos = sorted({m.group(1) for m in RE_MARCADOR.finditer(texto)} - set(MARCADORES) - {"semente"})
+    desconhecidos = sorted(usados - set(MARCADORES) - {"semente"})
     for d in desconhecidos:
         avisos.append(f"Marcador desconhecido: <<{d}>> (ficará vazio).")
     return avisos

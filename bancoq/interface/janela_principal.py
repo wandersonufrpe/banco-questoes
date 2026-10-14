@@ -17,6 +17,7 @@ class JanelaPrincipal(QMainWindow):
         self.ctx = ctx
         self.aplicativo = aplicativo
         self._fechando_para_trocar = False
+        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
         titulo = f"{NOME_APP} — {ctx.banco.nome}"
         if ctx.somente_leitura:
             titulo += " [somente leitura]"
@@ -35,6 +36,9 @@ class JanelaPrincipal(QMainWindow):
 
         self.l_banco = QLabel(str(ctx.banco.pasta))
         self.statusBar().addPermanentWidget(self.l_banco)
+        self.l_tex = QLabel()
+        self.statusBar().addPermanentWidget(self.l_tex)
+        self._atualizar_status_tex()
         if ctx.somente_leitura:
             aviso = QLabel("  SOMENTE LEITURA  ")
             aviso.setStyleSheet("background:#c25e00;color:white;font-weight:bold;border-radius:3px;")
@@ -72,6 +76,8 @@ class JanelaPrincipal(QMainWindow):
         self.menu_banco = self.menuBar().addMenu("&Banco")
         self._acao(self.menu_banco, "Categorias…", self.banco.gerenciar_categorias)
         self._acao(self.menu_banco, "Tags…", self.banco.gerenciar_tags)
+        self.menu_ferramentas = self.menuBar().addMenu("&Ferramentas")
+        self._acao(self.menu_ferramentas, "Configurações…", self.abrir_configuracoes, QKeySequence("Ctrl+,"))
         self.menu_ajuda = self.menuBar().addMenu("A&juda")
         self._acao(self.menu_ajuda, "Sobre…", self._sobre)
 
@@ -82,6 +88,22 @@ class JanelaPrincipal(QMainWindow):
         a.triggered.connect(func)
         menu.addAction(a)
         return a
+
+    def abrir_configuracoes(self, aba: int = 0) -> None:
+        from .configuracoes import DialogoConfiguracoes
+
+        DialogoConfiguracoes(self.ctx, self, aba if isinstance(aba, int) else 0).exec()
+        self._atualizar_status_tex()
+
+    def _atualizar_status_tex(self) -> None:
+        info = self.ctx.tex()
+        if info is None:
+            self.l_tex.setText("TeX não encontrado: só .tex")
+            self.l_tex.setStyleSheet("color: #a34a00;")
+        else:
+            self.l_tex.setText(f"TeX: {info.motor}")
+            self.l_tex.setStyleSheet("")
+        self.l_tex.setToolTip(info.descricao() if info else "Instale o TeX Live ou o MiKTeX, ou configure o caminho")
 
     def _sobre(self) -> None:
         QMessageBox.about(

@@ -43,6 +43,14 @@ def perfil() -> QWebEngineProfile:
     return _perfil
 
 
+def descartar_perfil() -> None:
+    global _perfil, _interceptor
+    if _perfil is not None:
+        _perfil.deleteLater()
+        _perfil = None
+        _interceptor = None
+
+
 class PaginaPrevia(QWebEnginePage):
     def acceptNavigationRequest(self, url, tipo, principal) -> bool:  # noqa: N802
         # só a carga inicial (setHtml) é permitida; cliques em links são ignorados

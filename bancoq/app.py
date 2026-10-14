@@ -173,7 +173,25 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         return app.exec()
     finally:
+        encerrar_qt(app)
         limpar_pasta_temporaria()
+
+
+def encerrar_qt(app) -> None:
+    """Destrói as janelas (e as páginas web) antes do perfil do QtWebEngine."""
+    from PySide6.QtCore import QCoreApplication, QEvent
+
+    from .interface import tarefas
+
+    tarefas.aguardar_todas()
+    for w in app.topLevelWidgets():
+        w.close()
+        w.deleteLater()
+    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    QCoreApplication.processEvents()
+    from .interface import previa
+
+    previa.descartar_perfil()
 
 
 if __name__ == "__main__":
