@@ -187,3 +187,59 @@ CREATE VIRTUAL TABLE questoes_fts USING fts5(
 - `test_importador.py`: exam, enumerate aninhado, divisão manual.
 - `test_compilacao.py`: ponta a ponta com pdflatex (pulado se não houver TeX).
 - `test_trava_backup.py`, `test_duplicadas.py`.
+
+---
+
+# Versão 2: importação de PDFs com o Claude
+
+## Decisões do professor (perguntas e respostas antes de começar)
+
+| Ponto | Escolha |
+|---|---|
+| Onde a IA roda | **Pela assinatura do Claude**, no **Claude Code do próprio computador** (sem chave de API). O app continua 100% offline. |
+| PDFs | **Digitais** (texto selecionável): provas em LaTeX, InDesign, Word, impressas pelo navegador. |
+| Figuras | **Só redesenhar em TikZ**, compilado e comparado com o original. |
+| Resolução | **Resolver e conferir**: segunda resolução independente, SymPy quando der, gabarito do PDF quando houver. |
+| Estilo | **Resolução completa + comentário em cada alternativa**. |
+| Categoria e tags | **Pode sugerir novas**, criadas só se aprovadas. |
+| Volume e plano | Mais de 300 questões por mês, plano **Pro**: processamento **retomável**. |
+| Idioma | Só português. |
+
+## Como funciona
+
+```
+PDF ──► Claude Code (skill importar-pdf) ──► pacote em <banco>/entrada/pacotes/ ──► app: aprovação questão a questão ──► banco
+         │  ferramentas: python -m bancoq.ia ...
+         │  (páginas, regiões, recortes, figuras, catálogo, TikZ)
+```
+
+1. **Claude Code** abre a pasta do repositório e roda a skill `importar-pdf`. As ferramentas
+   de apoio (`python -m bancoq.ia`) não usam a interface gráfica nem a internet:
+   - `banco` / `catalogo`: pasta do banco e catálogo (categorias, tags, preâmbulo), só leitura;
+   - `preparar`: páginas em PNG e blocos de texto com coordenadas;
+   - `regioes`: onde começa e termina cada questão (marcadores "QUESTÃO 144", "1.", "03."…);
+   - `figuras`: agrupamentos de desenhos e imagens de cada página;
+   - `recortar`: recorte de uma região (questão ou figura) em PNG;
+   - `tikz`: compila uma figura TikZ com o preâmbulo do banco e gera o PNG
+     lado a lado com o original, para conferir;
+   - `validar`: confere o pacote antes de entregar.
+2. Para cada questão, o Claude escreve o LaTeX, a resolução completa e os comentários,
+   resolve de novo de forma independente (subagente), confere com SymPy e com o gabarito
+   do PDF, redesenha as figuras em TikZ e preenche os metadados.
+3. **Pacote:** `<banco>/entrada/pacotes/<pdf>/pacote.json` + `recortes/` + `figuras/`.
+   O Claude grava cada questão assim que ela fica pronta; o estado de trabalho fica em
+   `trabalho/` (no repositório, fora do Git), e uma nova sessão continua de onde parou.
+4. **App:** aba "Caixa de entrada". Para cada questão: recorte original do PDF, relatório de
+   verificação e o editor do cadastro preenchido. "Aprovar e incluir" passa pelas checagens de
+   sempre (LaTeX e duplicadas); "Rejeitar" descarta. As decisões ficam em `decisoes.json`
+   no pacote (o app nunca altera o `pacote.json`).
+5. **TikZ na prévia rápida:** figuras `tikzpicture` passam a ser compiladas em segundo plano
+   e mostradas como imagem (com cache), em vez de "[use a prévia exata]".
+
+## Etapas (um commit por etapa)
+
+8. **Núcleo IA:** formato do pacote, catálogo, ferramentas de PDF e TikZ, CLI, testes.
+9. **Skill do Claude Code:** fluxo, formato, convenções de LaTeX e TikZ, verificação,
+   metadados e retomada.
+10. **App:** caixa de entrada, tela de aprovação, TikZ na prévia rápida, avisos.
+11. **Piloto** com PDFs reais (OBMEP, ENA, ENEM), documentação e versão 2.0.0.
