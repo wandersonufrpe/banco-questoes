@@ -6,7 +6,7 @@ import html
 from typing import Callable
 
 from .entidades import Questao, letra
-from .latex_html import latex_para_html
+from .latex_html import ResolverTikz, latex_para_html
 
 
 def html_questao(
@@ -15,9 +15,10 @@ def html_questao(
     mostrar_respostas: bool = True,
     mostrar_observacoes: bool = True,
     numero: str | None = None,
+    resolver_tikz: ResolverTikz | None = None,
 ) -> str:
     def conv(t: str) -> str:
-        return latex_para_html(t, resolver_imagem)
+        return latex_para_html(t, resolver_imagem, resolver_tikz)
 
     partes = ['<div class="questao">']
     if numero:

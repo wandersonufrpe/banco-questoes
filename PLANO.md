@@ -222,13 +222,17 @@ PDF ──► Claude Code (skill importar-pdf) ──► pacote em <banco>/entra
    - `recortar`: recorte de uma região (questão ou figura) em PNG;
    - `tikz`: compila uma figura TikZ com o preâmbulo do banco e gera o PNG
      lado a lado com o original, para conferir;
-   - `validar`: confere o pacote antes de entregar.
+   - `pagina`: página inteira (com `--grade`, quadriculada para achar coordenadas);
+   - `validar` / `finalizar`: confere o pacote (com `--compilar`, compila cada questão);
+   - `status`: o que já foi escrito e o que falta.
 2. Para cada questão, o Claude escreve o LaTeX, a resolução completa e os comentários,
    resolve de novo de forma independente (subagente), confere com SymPy e com o gabarito
    do PDF, redesenha as figuras em TikZ e preenche os metadados.
-3. **Pacote:** `<banco>/entrada/pacotes/<pdf>/pacote.json` + `recortes/` + `figuras/`.
-   O Claude grava cada questão assim que ela fica pronta; o estado de trabalho fica em
-   `trabalho/` (no repositório, fora do Git), e uma nova sessão continua de onde parou.
+3. **Pacote:** `<banco>/entrada/pacotes/<pdf>/` com `pacote.json` (dados do PDF),
+   `questoes/<id>.txt` (uma questão por arquivo, LaTeX puro em seções `@@`),
+   `recortes/` e `figuras/`. O Claude grava cada questão assim que ela fica pronta; o
+   estado de trabalho fica em `trabalho/` (no repositório, fora do Git), e uma nova
+   sessão continua de onde parou (`status`).
 4. **App:** aba "Caixa de entrada". Para cada questão: recorte original do PDF, relatório de
    verificação e o editor do cadastro preenchido. "Aprovar e incluir" passa pelas checagens de
    sempre (LaTeX e duplicadas); "Rejeitar" descarta. As decisões ficam em `decisoes.json`

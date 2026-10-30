@@ -318,3 +318,44 @@ está registrada aqui, por etapa.
   (glibc 2.39), que roda no Mint 22.
 - **Python do build:** o workflow do GitHub usa o Python 3.12. O build e os
   testes locais usaram o 3.13.
+
+## Etapa 8: núcleo da importação com IA
+
+- **Uma questão por arquivo de texto, não JSON.** O Claude grava cada questão em
+  `questoes/<id>.txt`, com cabeçalho `@campo: valor` e seções `@@enunciado`,
+  `@@alternativa correta`, `@@comentario`, `@@resolucao`… O LaTeX fica puro: em
+  JSON, `\frac` viraria "form feed" + `rac` e `\neq` viraria quebra de linha + `eq`
+  **sem dar erro**, estragando fórmulas em silêncio. O `pacote.json` (dados do PDF)
+  e o `decisoes.json` (aprovações, gravado só pelo app) são escritos por programa.
+- **Gravação questão a questão:** cada arquivo é uma questão pronta; o app pode
+  revisar enquanto o Claude ainda trabalha, e uma sessão nova do Claude Code vê com
+  `status` o que falta. O que é rascunho (texto extraído, regiões, comparações de
+  TikZ) fica em `trabalho/` no repositório, fora do Git e fora da pasta sincronizada.
+- **Onde está cada questão:** o programa procura marcadores ("QUESTÃO 144",
+  "1.", "03.") e fica com o estilo (fonte, tamanho, negrito) que forma a maior
+  sequência 1, 2, 3…; assim as instruções da capa, numeradas em outra fonte, ficam
+  de fora. A página é dividida em faixas de uma ou duas colunas (uma figura larga
+  ou uma tabela não é tomada por duas colunas), e a questão vai do seu marcador até
+  o próximo, atravessando colunas e páginas. Cabeçalhos, rodapés, números de página
+  e fios entre colunas são ignorados. Testado com a OBMEP 2025 (texto convertido em
+  curvas, sem camada de texto), o ENA 2027 (uma coluna, LaTeX) e o ENEM 2025 (duas
+  colunas, com tabelas largas): 20, 30 e 45 questões encontradas.
+- **Figuras:** agrupamentos de desenhos e imagens dentro da questão, com os rótulos
+  próximos. É a parte menos confiável (há PDFs com coordenadas de desenhos erradas);
+  o recorte da questão inteira é sempre fiel, e o Claude pode refazer qualquer
+  recorte com `recortar` (com a página quadriculada de `pagina --grade` para achar as
+  coordenadas) ou apagar uma figura falsa com `remover-figura`.
+- **Figura que não é desenho** (quadro de texto, tabela): `@figura: N | texto`, e
+  ela vira LaTeX comum. As demais (`ok` ou `ajustar`) são redesenhadas em TikZ; a
+  k-ésima `tikzpicture` do enunciado e das alternativas corresponde à k-ésima
+  figura desenhada.
+- **Conferência do TikZ:** cada figura é compilada sozinha (classe `standalone`,
+  com TikZ, bibliotecas comuns e as linhas de TikZ do modelo e do preâmbulo do
+  banco) e posta lado a lado com o original. O PNG fica em cache pelo conteúdo; o
+  mesmo módulo servirá à prévia rápida do app.
+- **Categorias:** o caminho sugerido (`Geometria > Triângulos`) é comparado sem
+  acentos e sem maiúsculas com as categorias existentes; só o que faltar vira
+  categoria nova, criada apenas quando a questão é aprovada.
+- **Ferramentas sem interface e sem rede:** `python -m bancoq.ia` usa só o PyMuPDF
+  (e o TeX para TikZ e checagem), lê o banco em modo somente leitura e responde em
+  JSON. O banco é o último aberto no app (ou `--banco`).

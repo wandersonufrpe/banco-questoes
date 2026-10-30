@@ -3,8 +3,8 @@
 A matemática é repassada ao MathJax com os delimitadores ``\\( \\)`` e
 ``\\[ \\]``; o texto em volta é convertido aqui: parágrafos, ``\\textbf``,
 ``\\emph``, ``itemize``, ``enumerate``, ``tabular`` simples e alguns símbolos.
-O que não é suportado (TikZ, por exemplo) vira o aviso
-"[use a prévia exata]".
+O que não é suportado vira o aviso "[use a prévia exata]". Figuras TikZ viram
+imagem quando há quem as compile (``resolver_tikz``; veja ``nucleo/tikz.py``).
 """
 
 from __future__ import annotations
@@ -17,6 +17,10 @@ from typing import Callable
 from .midia import RE_MARCADOR, largura_de
 
 AVISO = "[use a prévia exata]"
+
+# resolver_tikz(código do tikzpicture) -> (estado, valor):
+#   ("ok", url da imagem) | ("pendente", "") | ("erro", mensagem)
+ResolverTikz = Callable[[str], tuple[str, str]]
 
 AMBIENTES_MATEMATICOS = {
     "equation", "equation*", "align", "align*", "gather", "gather*", "multline",
@@ -149,10 +153,12 @@ def remover_comentarios(texto: str) -> str:
 
 
 class _Conversor:
-    def __init__(self, texto: str, resolver_imagem: Callable[[str], str | None] | None):
+    def __init__(self, texto: str, resolver_imagem: Callable[[str], str | None] | None,
+                 resolver_tikz: ResolverTikz | None = None):
         self.s = texto
         self.i = 0
         self.resolver = resolver_imagem
+        self.resolver_tikz = resolver_tikz
         self.n = len(texto)
 
     # -- leitura básica ---------------------------------------------------------
@@ -241,7 +247,7 @@ class _Conversor:
         return ch
 
     def _sub(self, texto: str) -> str:
-        return _Conversor(texto, self.resolver).converter()
+        return _Conversor(texto, self.resolver, self.resolver_tikz).converter()
 
     # -- matemática -----------------------------------------------------------------
     def _ler_ate(self, fim: str) -> str:
@@ -482,9 +488,22 @@ class _Conversor:
             self._ler_argumento()  # especificação das colunas
             conteudo = self._sub(self._ler_ambiente_bruto(nome))
             return self._tabela(conteudo)
+        if nome == "tikzpicture":
+            return self._tikz("\\begin{tikzpicture}" + self._ler_ambiente_bruto(nome) + "\\end{tikzpicture}")
         # ambiente não suportado: pula o conteúdo e avisa
         self._ler_ambiente_bruto(nome)
         return self._aviso(f"ambiente {nome}")
+
+    def _tikz(self, codigo: str) -> str:
+        if self.resolver_tikz is None:
+            return self._aviso("figura TikZ")
+        estado, valor = self.resolver_tikz(codigo)
+        if estado == "ok":
+            return f'<img class="tikz" src="{html.escape(valor)}">'
+        if estado == "pendente":
+            return '<span class="aviso tikz-pendente">[desenhando a figura TikZ…]</span>'
+        return (f'<span class="aviso" title="{html.escape(valor)}">'
+                f'[a figura TikZ não compilou: {html.escape(valor[:120])}]</span>')
 
     @staticmethod
     def _lista(nome: str, opcao: str, conteudo: str) -> str:
@@ -536,12 +555,13 @@ def _finalizar(html_bruto: str) -> str:
     return "".join(f'<div class="p">{p}</div>' for p in paragrafos if p)
 
 
-def latex_para_html(texto: str, resolver_imagem: Callable[[str], str | None] | None = None) -> str:
+def latex_para_html(texto: str, resolver_imagem: Callable[[str], str | None] | None = None,
+                    resolver_tikz: ResolverTikz | None = None) -> str:
     """Converte um campo LaTeX em HTML para a prévia (matemática fica para o MathJax)."""
     if not texto or not texto.strip():
         return ""
     limpo = remover_comentarios(texto.replace("\r\n", "\n"))
-    return _finalizar(_Conversor(limpo, resolver_imagem).converter())
+    return _finalizar(_Conversor(limpo, resolver_imagem, resolver_tikz).converter())
 
 
 def texto_simples(texto: str, limite: int = 160) -> str:
