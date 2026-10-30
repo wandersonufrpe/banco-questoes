@@ -1,4 +1,4 @@
 # Ferramentas da importação de PDFs com o Claude Code (python -m bancoq.ia).
 # Não precisa do PySide6: dá para usar um ambiente pequeno só para isto.
-PyMuPDF>=1.23
+PyMuPDF>=1.23,<2  # a 2.0 mudou o empacotamento (arquivos de dados do módulo layout)
 sympy>=1.12

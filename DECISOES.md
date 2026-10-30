@@ -445,3 +445,14 @@ professor: OBMEP 2025 Nível 3 (questões 1 e 3), ENA 2027 (questão 3) e ENEM 2
 - **Não testado aqui:** a segunda resolução por subagente (foi substituída por
   força bruta/SymPy, que é mais forte nestas questões) e o consumo de uso do plano
   Pro, que só dá para medir no Claude Code do professor (`/usage`).
+
+## Versão 2.0.1
+
+- O build do Linux no GitHub instalou o **PyMuPDF 2.0**, lançado depois da v1, que
+  passou a ler arquivos de dados (módulo `layout`) ao ser importado; o PyInstaller
+  não os incluiu e o executável Linux falhou no autoteste (o Windows passou). O
+  PyMuPDF ficou fixado na série 1.x (`<2`), a testada, para os builds serem
+  reproduzíveis. A Release 2.0.0 saiu só com o Windows; a 2.0.1 tem os dois.
+- O workflow agora transforma o relatório do autoteste em anotação do job quando
+  ele falha (foi assim que o problema foi achado) e completa uma Release à qual
+  falte o executável de um sistema.
