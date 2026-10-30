@@ -247,3 +247,5 @@ PDF ──► Claude Code (skill importar-pdf) ──► pacote em <banco>/entra
    metadados e retomada.
 10. **App:** caixa de entrada, tela de aprovação, TikZ na prévia rápida, avisos.
 11. **Piloto** com PDFs reais (OBMEP, ENA, ENEM), documentação e versão 2.0.0.
+
+Todas as etapas foram concluídas; o resultado do piloto está em `DECISOES.md`.

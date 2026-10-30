@@ -315,6 +315,7 @@ def test_regioes_uma_coluna_ignora_instrucoes(tmp_path):
 
 def test_normalizar_texto():
     assert ferramentas_pdf.normalizar_texto("qual ´e a soluc¸˜ao? ˆangulo") == "qual é a solução? ângulo"
+    assert ferramentas_pdf.normalizar_texto("Liga¸cões e equac¸ ˜oes") == "Ligações e equações"
 
 
 def test_recortes_e_comparacao(tmp_path):
@@ -537,3 +538,24 @@ def test_relatorio_e_atencao(banco, tmp_path):
                        "figura para ajustar", "aviso do Claude"]
     h = relatorio_html(q, pac, [])
     assert "✖" in h and "enunciado ambíguo" in h and "precisa de ajuste" in h
+
+
+def test_tikz_em_formula_e_catalogo_com_pendentes(banco, tmp_path, monkeypatch, capsys):
+    from bancoq.ia.pacote import tikz_em_formula
+
+    assert tikz_em_formula(r"\[ x = \text{" + FIGURA + r"} \]")
+    assert not tikz_em_formula(r"$a=1$ " + FIGURA + r" e $b$ custa R\$ 5")
+    q = ler_questao(QUESTAO_OK.replace(r"Veja a figura.", r"$x = \text{\begin{tikzpicture}\end{tikzpicture}}$"))
+    assert any("dentro de fórmula" in p.mensagem for p in validar_questao(q) if p.gravidade == "erro")
+
+    monkeypatch.setenv("BANCOQ_TRABALHO", str(tmp_path / "trabalho"))
+    pac = Pacote.criar(pasta_pacotes(banco.pasta) / "p1", titulo="P1")
+    pac.gravar_questao(ler_questao(QUESTAO_OK, "q004"))
+    rasc = Pacote(tmp_path / "trabalho" / "p2")
+    rasc.gravar_questao(ler_questao(QUESTAO_OK.replace("Aritmética > Frações", "Geometria > Áreas"), "q001"))
+    codigo, r = _rodar(capsys, "--banco", str(banco.pasta), "catalogo")
+    assert [c["caminho"] for c in r["categorias_novas_em_uso"]] == ["Aritmética > Frações", "Geometria > Áreas"]
+    assert {t["nome"]: t["questoes"] for t in r["tags_novas_em_uso"]} == {"frações": 2, "soma": 2}
+    pac.registrar_decisao("q004", REJEITADA)        # decidida: deixa de contar
+    codigo, r = _rodar(capsys, "--banco", str(banco.pasta), "catalogo")
+    assert [c["caminho"] for c in r["categorias_novas_em_uso"]] == ["Geometria > Áreas"]

@@ -46,9 +46,13 @@ Uma categoria por questão, como caminho do geral para o específico
 (`Área > Assunto`, no máximo 3 níveis), pelo conteúdo **principal** cobrado.
 
 1. Use uma categoria que já existe (`catalogo` → `categorias`), com a mesma grafia.
-2. Só crie uma nova se nenhuma servir; siga o estilo das existentes e anote em
+2. Veja também `catalogo` → `categorias_novas_em_uso`: categorias novas que você (ou
+   outra sessão) já sugeriu em questões que o professor ainda não aprovou. Use a
+   mesma grafia; não crie uma parecida ("Sistemas de numeração" e "Sistema de
+   numeração decimal" para o mesmo assunto).
+3. Só crie uma nova se nenhuma servir; siga o estilo das existentes e anote em
    `notas.md` para repetir igual nas próximas questões.
-3. Banco vazio: use estas áreas no primeiro nível e assuntos no segundo:
+4. Banco vazio: use estas áreas no primeiro nível e assuntos no segundo:
    `Aritmética`, `Álgebra`, `Funções`, `Geometria Plana`, `Geometria Espacial`,
    `Geometria Analítica`, `Trigonometria`, `Combinatória`, `Probabilidade`,
    `Estatística`, `Matemática Financeira`, `Lógica`, `Teoria dos Números`.
@@ -62,7 +66,8 @@ Categorias novas só são criadas no banco se o professor aprovar a questão.
 De 2 a 5, em minúsculas (exceto nomes próprios), curtas, em português: o assunto mais
 fino e a técnica usada. Ex.: `área de triângulos; ponto médio; decomposição de figuras`.
 
-- Prefira as que já existem (`catalogo` → `tags`), com a mesma grafia.
+- Prefira as que já existem (`catalogo` → `tags` e `tags_novas_em_uso`), com a
+  mesma grafia.
 - Não repita a categoria nem a fonte como tag (o nome da prova já está na fonte).
 - Contexto útil para montar provas também vale: `leitura de gráfico`,
   `interpretação de tabela`, `contextualizada`.

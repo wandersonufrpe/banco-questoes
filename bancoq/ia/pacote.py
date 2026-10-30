@@ -511,6 +511,14 @@ def problemas_latex(texto: str) -> list[str]:
     return erros
 
 
+RE_FORMULA = re.compile(r"\\\[.*?\\\]|\$\$.*?\$\$|(?<!\\)\$.*?(?<!\\)\$|\\\(.*?\\\)", re.S)
+
+
+def tikz_em_formula(texto: str) -> bool:
+    """tikzpicture dentro de $...$ ou \\[...\\]: compila, mas a prévia rápida não mostra."""
+    return any("tikzpicture" in m.group() for m in RE_FORMULA.finditer(texto or ""))
+
+
 def validar_questao(q: QuestaoPacote, pacote: "Pacote | None" = None) -> list[Problema]:
     pr = list(q.problemas_leitura)
 
@@ -576,6 +584,9 @@ def validar_questao(q: QuestaoPacote, pacote: "Pacote | None" = None) -> list[Pr
     for nome, texto in campos:
         for e in problemas_latex(texto):
             erro(f"{nome}: {e}")
+        if tikz_em_formula(texto):
+            erro(f"{nome}: tikzpicture dentro de fórmula ($...$ ou \\[...\\]); feche a fórmula "
+                 "antes da figura (a prévia rápida do app não mostra figura dentro de fórmula)")
 
     # figuras
     from ..nucleo.tikz import figuras_tikz

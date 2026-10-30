@@ -57,6 +57,13 @@ gráficos de funções com eixos, `pgfplots`: `@preambulo: \usepackage{pgfplots}
    o `xcolor`). Sombreado cinza do original: `fill=gray!25`.
 6. Figura dentro de `\begin{center} ... \end{center}`. Em alternativas com figura,
    a `tikzpicture` vai dentro da alternativa (com `scale` menor).
+7. **Nunca** ponha uma `tikzpicture` dentro de fórmula (`$...$`, `\[...\]`,
+   `\text{}`): compila, mas a prévia rápida do app não mostra (o `validar` acusa).
+   Para uma figura na mesma linha de uma conta, feche a fórmula antes:
+   `$12\,023 = \dots =$ \begin{tikzpicture}[baseline=0pt] ... \end{tikzpicture}`.
+8. Símbolos repetidos (como os hieróglifos de uma questão) ficam mais fáceis como
+   `pic` definidos nas opções da própria figura: `[simbolo/.pic={\draw ...;}]` e
+   depois `\pic at (x,0) {simbolo};`.
 
 ### Compilar e comparar
 

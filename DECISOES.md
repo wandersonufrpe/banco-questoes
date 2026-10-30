@@ -411,3 +411,37 @@ está registrada aqui, por etapa.
   com prévia rápida.
 - **Autoteste:** ganhou a verificação "Caixa de entrada" (lê um pacote fictício),
   para garantir que o executável inclui os módulos novos.
+
+## Etapa 11: piloto com PDFs reais
+
+Seguindo a própria skill, num banco de teste, com os três PDFs enviados pelo
+professor: OBMEP 2025 Nível 3 (questões 1 e 3), ENA 2027 (questão 3) e ENEM 2025,
+2º dia (questões 144 e 145).
+
+- **Regiões:** as 20, 30 e 45 questões dos três PDFs foram encontradas; os recortes
+  saíram completos (inclusive a OBMEP, que não tem camada de texto, e as questões do
+  ENA que continuam na página seguinte).
+- **Figuras:** o grafo da OBMEP e o diagrama do ENA ficaram fiéis em uma ou duas
+  rodadas de comparação. Os hieróglifos do ENEM (ilustrações) ficaram como
+  aproximação reconhecível, marcados "ajustar", como combinado. A figura das
+  alternativas da 144 veio num recorte só e foi separada em cinco com `recortar
+  --figura`. A "figura" da questão 1 da OBMEP era uma conta armada e virou LaTeX.
+- **Respostas:** todas conferidas por força bruta/SymPy; no ENA, o gabarito do
+  próprio PDF confere. Na 145 do ENEM, cada alternativa errada foi reproduzida por
+  um erro concreto (que virou o comentário dela).
+- **App:** as cinco questões foram aprovadas pela caixa de entrada; o app ofereceu
+  acrescentar `\usepackage{tikz}` ao preâmbulo, a checagem de LaTeX passou e as
+  categorias e tags novas foram criadas na aprovação.
+- **Correções feitas a partir do piloto:**
+  - figura TikZ dentro de fórmula (`\[ … \text{\begin{tikzpicture}…} \]`) compila
+    mas não aparece na prévia rápida: o `validar` agora acusa erro e a skill explica
+    como escrever;
+  - foram criadas duas categorias com nomes diferentes para o mesmo assunto: o
+    `catalogo` agora lista também as categorias e tags novas já usadas em
+    questões ainda não aprovadas (`categorias_novas_em_uso`, `tags_novas_em_uso`),
+    e a skill manda reaproveitá-las;
+  - a cedilha que o TeX às vezes põe antes do "c" ("Liga¸cões") agora é corrigida
+    no texto extraído.
+- **Não testado aqui:** a segunda resolução por subagente (foi substituída por
+  força bruta/SymPy, que é mais forte nestas questões) e o consumo de uso do plano
+  Pro, que só dá para medir no Claude Code do professor (`/usage`).

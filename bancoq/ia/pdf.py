@@ -95,6 +95,7 @@ _ACENTOS = {"´": "́", "`": "̀", "ˆ": "̂", "^": "̂", "˜": "̃", "~": "̃",
 def normalizar_texto(texto: str) -> str:
     """Junta acentos soltos que o TeX deixa na camada de texto ("´e" -> "é", "c¸" -> "ç")."""
     t = re.sub(r"([cC])¸\s?", lambda m: "ç" if m.group(1) == "c" else "Ç", texto)
+    t = re.sub(r"¸\s?([cC])", lambda m: "ç" if m.group(1) == "c" else "Ç", t)   # cedilha antes do c
     t = re.sub(r"([´`ˆ˜¨])\s?([A-Za-zıÍ])",
                lambda m: unicodedata.normalize("NFC", m.group(2).replace("ı", "i") + _ACENTOS[m.group(1)]),
                t)

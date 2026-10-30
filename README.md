@@ -9,6 +9,11 @@ LaTeX e PDF, com versões embaralhadas, gabarito e resolução.
 - É distribuído como executável para Linux (AppImage ou pasta portátil) e
   Windows (pasta portátil com `.exe`). Não é preciso instalar Python.
 - O banco começa vazio, e nada é gravado sem você apertar um botão de salvar.
+- **Versão 2:** importa provas em PDF com a ajuda do Claude Code (pela sua
+  assinatura do Claude): ele transcreve cada questão, redesenha as figuras em TikZ,
+  resolve, confere a resposta e sugere os metadados; você aprova uma a uma na
+  **Caixa de entrada** do aplicativo. Veja
+  [Importação de provas em PDF](#importação-de-provas-em-pdf-com-o-claude).
 
 Veja também: [`PLANO.md`](PLANO.md) (estrutura, esquema do banco e etapas) e
 [`DECISOES.md`](DECISOES.md) (decisões tomadas onde o pedido não especificava).
