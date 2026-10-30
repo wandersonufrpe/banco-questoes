@@ -230,9 +230,9 @@ PDF ──► Claude Code (skill importar-pdf) ──► pacote em <banco>/entra
    do PDF, redesenha as figuras em TikZ e preenche os metadados.
 3. **Pacote:** `<banco>/entrada/pacotes/<pdf>/` com `pacote.json` (dados do PDF),
    `questoes/<id>.txt` (uma questão por arquivo, LaTeX puro em seções `@@`),
-   `recortes/` e `figuras/`. O Claude grava cada questão assim que ela fica pronta; o
-   estado de trabalho fica em `trabalho/` (no repositório, fora do Git), e uma nova
-   sessão continua de onde parou (`status`).
+   `recortes/` e `figuras/`. O Claude escreve em `trabalho/<pacote>/` (no repositório,
+   fora do Git) e entrega cada questão assim que ela fica pronta (`entregar`); uma
+   nova sessão continua de onde parou (`status`).
 4. **App:** aba "Caixa de entrada". Para cada questão: recorte original do PDF, relatório de
    verificação e o editor do cadastro preenchido. "Aprovar e incluir" passa pelas checagens de
    sempre (LaTeX e duplicadas); "Rejeitar" descarta. As decisões ficam em `decisoes.json`

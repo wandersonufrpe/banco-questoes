@@ -56,15 +56,21 @@ def _parser() -> argparse.ArgumentParser:
     s.add_argument("--arquivo", help="compila só o TikZ deste arquivo (teste antes de escrever)")
     s.add_argument("--figura", type=int, help="com --arquivo: figura do PDF para comparar")
 
-    s = sub.add_parser("validar", help="confere as questões escritas no pacote")
+    s = sub.add_parser("validar", help="confere as questões escritas no rascunho (trabalho/)")
     s.add_argument("pacote")
     s.add_argument("questoes", nargs="*")
     s.add_argument("--compilar", action="store_true", help="também compila o LaTeX de cada questão")
 
+    s = sub.add_parser("entregar", help="copia as questões sem erro para a caixa de entrada do app")
+    s.add_argument("pacote")
+    s.add_argument("questoes", nargs="*")
+    s.add_argument("--compilar", action="store_true", help="compila o LaTeX antes de entregar")
+    s.add_argument("--forcar", action="store_true", help="reenvia questões rejeitadas no app")
+
     s = sub.add_parser("status", help="o que já foi feito e o que falta no pacote")
     s.add_argument("pacote")
 
-    s = sub.add_parser("finalizar", help="confere tudo e marca o pacote como pronto para revisão")
+    s = sub.add_parser("finalizar", help="confere e entrega tudo e marca o pacote como pronto")
     s.add_argument("pacote")
     s.add_argument("--sem-compilar", action="store_true")
     return p
@@ -92,6 +98,9 @@ def executar(argv: list[str] | None = None) -> tuple[dict, int]:
     elif c == "validar":
         r = comandos.cmd_validar(a.pacote, a.questoes or None, a.banco, a.compilar)
         return r, 1 if r["com_erro"] else 0
+    elif c == "entregar":
+        r = comandos.cmd_entregar(a.pacote, a.questoes or None, a.banco, a.compilar, a.forcar)
+        return r, 1 if r["puladas"] and not r["entregues"] else 0
     elif c == "status":
         r = comandos.cmd_status(a.pacote, a.banco)
     elif c == "finalizar":
@@ -111,6 +120,11 @@ def main(argv: list[str] | None = None) -> int:
         resultado, codigo = executar(argv)
     except (comandos.ErroComando, ErroCatalogo, ErroPacote) as e:
         resultado, codigo = {"erro": str(e)}, 2
+    except Exception as e:  # noqa: BLE001 - falha inesperada: detalhes no stderr
+        import traceback
+
+        traceback.print_exc()
+        resultado, codigo = {"erro": f"falha inesperada ({type(e).__name__}: {e})"}, 2
     print(json.dumps(resultado, ensure_ascii=False, indent=1))
     return codigo
 

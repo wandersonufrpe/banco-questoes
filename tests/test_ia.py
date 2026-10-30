@@ -10,6 +10,7 @@ import pytest
 
 from bancoq.ia import pdf as ferramentas_pdf
 from bancoq.ia.__main__ import main
+from bancoq.ia.comandos import rascunho
 from bancoq.ia.pacote import (
     APROVADA,
     FIGURA_AJUSTAR,
@@ -403,7 +404,11 @@ def test_cli_fluxo_completo(banco, tmp_path, monkeypatch, capsys):
     q2 = next(q for q in r["questoes"] if q["id"] == "q002")
     assert len(q2["figuras"]) == 1 and q2["texto_util"]
     pac = Pacote.abrir(r["pacote"])
-    assert pac.previstas == 6 and pac.recorte("q001") and pac.figura_original("q002", 1)
+    rasc = rascunho(pac)                       # o Claude trabalha aqui, dentro do repositório
+    assert r["escreva_as_questoes_em"] == str(rasc.pasta_questoes)
+    assert rasc.pasta == tmp_path / "trabalho" / "prova-ficticia"
+    assert pac.previstas == 6 and rasc.recorte("q001") and rasc.figura_original("q002", 1)
+    assert not pac.recorte("q001")             # nada vai para o banco antes de entregar
 
     codigo, r = _rodar(capsys, "--banco", b, "status", "prova-ficticia")
     assert r["escritas"] == 0 and len(r["faltando"]) == 6
@@ -412,16 +417,34 @@ def test_cli_fluxo_completo(banco, tmp_path, monkeypatch, capsys):
     texto_ok = QUESTAO_OK.replace("@figura: 1 | ok\n", "")
     texto_ok = texto_ok.replace(r"\begin{tikzpicture}", "").replace(r"\end{tikzpicture}", "")
     texto_ok = texto_ok.replace(r"\draw (0,0) rectangle (2,1);", "")
-    (pac.pasta_questoes / "q001.txt").write_text(texto_ok, encoding="utf-8")
-    (pac.pasta_questoes / "q003.txt").write_text("@tipo: multipla\n@@enunciado\n$x\n", encoding="utf-8")
+    rasc.pasta_questoes.mkdir(parents=True)
+    (rasc.pasta_questoes / "q001.txt").write_text(texto_ok, encoding="utf-8")
+    (rasc.pasta_questoes / "q003.txt").write_text("@tipo: multipla\n@@enunciado\n$x\n", encoding="utf-8")
     codigo, r = _rodar(capsys, "--banco", b, "validar", "prova-ficticia")
     assert codigo == 1 and r["com_erro"] == ["q003"] and not r["questoes"]["q001"]["erros"]
+
+    codigo, r = _rodar(capsys, "--banco", b, "entregar", "prova-ficticia")
+    assert codigo == 0 and r["entregues"] == ["q001"] and "tem erro" in r["puladas"]["q003"]
+    assert pac.questao("q001").itens[1].correta and pac.recorte("q001")
+    codigo, r = _rodar(capsys, "--banco", b, "status", "prova-ficticia")
+    assert r["entregues"] == 1 and r["nao_entregues"] == ["q003"] and r["com_erro"] == ["q003"]
+
     codigo, r = _rodar(capsys, "--banco", b, "finalizar", "prova-ficticia", "--sem-compilar")
     assert codigo == 1 and r["com_erro"] == ["q003"]
-    (pac.pasta_questoes / "q003.txt").unlink()
+    (rasc.pasta_questoes / "q003.txt").unlink()
     codigo, r = _rodar(capsys, "--banco", b, "finalizar", "prova-ficticia", "--sem-compilar")
     assert codigo == 0 and r["pronto"] and "q002" in r["faltando_no_pdf"]
     assert Pacote.abrir(pac.pasta).situacao == "pronto"
+
+    # decisões do app: aprovada não volta; rejeitada só volta com --forcar
+    pac.registrar_decisao("q001", REJEITADA)
+    codigo, r = _rodar(capsys, "--banco", b, "entregar", "prova-ficticia", "q001")
+    assert codigo == 1 and "rejeitada" in r["puladas"]["q001"]
+    codigo, r = _rodar(capsys, "--banco", b, "entregar", "prova-ficticia", "q001", "--forcar")
+    assert r["entregues"] == ["q001"] and pac.pendentes() == ["q001"]
+    pac.registrar_decisao("q001", APROVADA, questao_id=1)
+    codigo, r = _rodar(capsys, "--banco", b, "entregar", "prova-ficticia", "q001", "--forcar")
+    assert codigo == 1 and "aprovada" in r["puladas"]["q001"]
 
     # recorte refeito à mão, página com grade e figura removida
     codigo, r = _rodar(capsys, "--banco", b, "recortar", "prova-ficticia", "q001",
@@ -430,10 +453,10 @@ def test_cli_fluxo_completo(banco, tmp_path, monkeypatch, capsys):
     codigo, r = _rodar(capsys, "--banco", b, "pagina", "prova-ficticia", "2", "--grade", "50")
     assert codigo == 0 and r["imagem"].endswith("p02-grade.png") and r["altura_pt"] == 842
     codigo, r = _rodar(capsys, "--banco", b, "remover-figura", "prova-ficticia", "q002", "1")
-    assert len(r["removidos"]) == 1 and not pac.figura_original("q002", 1)
+    assert len(r["removidos"]) == 1 and not rasc.figura_original("q002", 1)
 
     codigo, r = _rodar(capsys, "--banco", b, "pacotes")
-    assert r["pacotes"][0]["escritas"] == 1 and r["pacotes"][0]["situacao"] == "pronto"
+    assert r["pacotes"][0]["entregues"] == 1 and r["pacotes"][0]["situacao"] == "pronto"
     codigo, r = _rodar(capsys, "--banco", b, "catalogo")
     assert r["questoes"] == 0 and r["categorias"] == []
 
@@ -463,11 +486,12 @@ def test_cli_tikz_e_validar_compilando(banco, tmp_path, monkeypatch, capsys):
     b = str(banco.pasta)
     arq = pdf_duas_colunas(tmp_path / "ficticia.pdf")
     _rodar(capsys, "--banco", b, "preparar", str(arq))
-    pac = Pacote.abrir(pasta_pacotes(banco.pasta) / "ficticia")
-    (pac.pasta_questoes / "q002.txt").write_text(QUESTAO_OK, encoding="utf-8")
+    rasc = rascunho(Pacote.abrir(pasta_pacotes(banco.pasta) / "ficticia"))
+    rasc.pasta_questoes.mkdir(parents=True)
+    (rasc.pasta_questoes / "q002.txt").write_text(QUESTAO_OK, encoding="utf-8")
     codigo, r = _rodar(capsys, "--banco", b, "tikz", "ficticia", "q002")
     assert codigo == 0 and r["figuras"][0]["ok"] and r["figuras"][0]["figura"] == 1
-    assert pac.figura_tikz("q002", 1) and r["figuras"][0]["comparacao"].endswith("q002-1.png")
+    assert rasc.figura_tikz("q002", 1) and r["figuras"][0]["comparacao"].endswith("q002-1.png")
     teste = tmp_path / "teste.tex"
     teste.write_text(FIGURA, encoding="utf-8")
     codigo, r = _rodar(capsys, "--banco", b, "tikz", "ficticia", "q002", "--arquivo", str(teste),
@@ -475,7 +499,7 @@ def test_cli_tikz_e_validar_compilando(banco, tmp_path, monkeypatch, capsys):
     assert r["figuras"][0]["comparacao"].endswith("q002-1-teste.png")
     codigo, r = _rodar(capsys, "--banco", b, "validar", "ficticia", "q002", "--compilar")
     assert codigo == 0, r
-    (pac.pasta_questoes / "q002.txt").write_text(
+    (rasc.pasta_questoes / "q002.txt").write_text(
         QUESTAO_OK.replace(r"Com denominador", r"\comandoinexistente Com denominador"), encoding="utf-8")
     codigo, r = _rodar(capsys, "--banco", b, "validar", "ficticia", "q002", "--compilar")
     assert codigo == 1 and "Resolução" in r["questoes"]["q002"]["erros"][0]

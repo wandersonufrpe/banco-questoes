@@ -359,3 +359,29 @@ está registrada aqui, por etapa.
 - **Ferramentas sem interface e sem rede:** `python -m bancoq.ia` usa só o PyMuPDF
   (e o TeX para TikZ e checagem), lê o banco em modo somente leitura e responde em
   JSON. O banco é o último aberto no app (ou `--banco`).
+
+## Etapa 9: skill do Claude Code
+
+- **Skill `importar-pdf`** em `.claude/skills/` (vem junto com o repositório): o passo
+  a passo fica no `SKILL.md`, e os detalhes em quatro referências que o Claude só lê
+  quando precisa (formato do arquivo, LaTeX e TikZ, conferência, metadados), para
+  gastar menos contexto do plano Pro.
+- **Rascunho dentro do repositório, entrega por comando.** O Claude lê e escreve só
+  em `trabalho/<pacote>/`; o comando `entregar` confere a questão e a copia para a
+  caixa de entrada do banco (imagens primeiro, texto por último, para o app nunca ver
+  uma questão pela metade). Assim o Claude Code não precisa de licença para gravar
+  na pasta do banco (que costuma estar no Google Drive, fora do repositório), e o
+  banco não recebe rascunhos. Questões já aprovadas no app nunca são reenviadas; as
+  rejeitadas só com `--forcar`.
+- **`./bancoq-ia`:** script único para Linux e Windows (Git Bash, que o Claude Code
+  usa no Windows). Na primeira vez cria o ambiente `.venv-ia` só com PyMuPDF e SymPy
+  (sem o PySide6). `./bancoq-ia python script.py` roda as contas de conferência.
+- **Permissões do Claude Code:** o repositório não traz regras que liberem comandos
+  sem perguntar; o professor responde às perguntas na primeira vez (pode escolher
+  "não perguntar de novo").
+- **Conferência:** a segunda resolução é feita por um subagente que não vê a
+  resposta, em lotes de 5 a 10 questões (mais barato que uma chamada por questão).
+  A resposta nunca é trocada só para bater com o gabarito oficial: a divergência
+  fica registrada para o professor decidir.
+- **Categorias para banco vazio:** a skill sugere um primeiro nível fixo (Aritmética,
+  Álgebra, Funções, Geometria Plana…) para as importações começarem organizadas.

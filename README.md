@@ -287,6 +287,60 @@ Para ensinar o importador a reconhecer um formato novo, crie um módulo em
 decorada com `@registrar`, e importe-o em `__init__.py`. O arquivo `base.py`
 explica como.
 
+### Importação de provas em PDF (com o Claude)
+
+O **Claude Code**, com a sua assinatura do Claude, lê um PDF de prova e prepara
+cada questão: transcreve o enunciado e as alternativas em LaTeX, redesenha as
+figuras em TikZ (e compara com o original), escreve a resolução completa com um
+comentário para cada alternativa, confere a resposta (uma segunda resolução
+independente, contas no SymPy e o gabarito do PDF, quando houver) e sugere tipo,
+dificuldade, fonte, ano, categoria e tags. As questões chegam à **caixa de
+entrada** do aplicativo e **só entram no banco quando você aprova** cada uma.
+O aplicativo continua sem acessar a internet: quem usa a internet é o Claude Code.
+
+**O que é preciso (uma vez só):**
+
+1. [Claude Code](https://code.claude.com/docs) instalado e entrando com a sua
+   conta do Claude. No Windows ele usa o Git for Windows (Git Bash).
+2. Python 3.10 ou mais novo ([python.org](https://www.python.org/downloads/);
+   no Windows, marque *Add python.exe to PATH*). No Linux Mint já vem instalado.
+3. O TeX (seção 2), que o aplicativo já usa.
+4. Uma cópia deste repositório:
+   ```bash
+   git clone https://github.com/wandersonufrpe/banco-questoes.git
+   ```
+5. Ter aberto o banco no aplicativo pelo menos uma vez nesse computador (é assim
+   que as ferramentas descobrem a pasta do banco).
+
+**Para importar uma prova:**
+
+```bash
+cd banco-questoes
+claude
+```
+
+e, dentro do Claude Code:
+
+```
+/importar-pdf ~/Downloads/prova-obmep-2025.pdf
+```
+
+(Também dá para pedir em português: "importe as questões 1 a 10 deste PDF".)
+O Claude vai pedir licença para rodar `./bancoq-ia ...` (as ferramentas de leitura
+do PDF e de conferência) e para gravar arquivos na pasta `trabalho/`; você pode
+responder *sim, e não perguntar de novo*. Na primeira vez, o `./bancoq-ia` cria
+o ambiente `.venv-ia` com o PyMuPDF e o SymPy (um ou dois minutos).
+
+Cada questão é entregue assim que fica pronta. Se o seu limite de uso acabar no
+meio, nada se perde: numa sessão nova, peça `/importar-pdf <nome do pacote>` (o
+nome aparece no começo, por exemplo `obmep-2025-n3`) e ele continua de onde
+parou. No plano Pro, importe por lotes (por exemplo, 10 a 15 questões por vez) e
+acompanhe o consumo com `/usage` no Claude Code.
+
+No aplicativo, as questões aparecem na aba **Caixa de entrada** (veja abaixo).
+Os rascunhos ficam em `trabalho/` no repositório e podem ser apagados quando a
+importação terminar.
+
 ### Macros próprias
 
 Em *Ferramentas > Configurações > Preâmbulo e macros*, escreva seus pacotes e
@@ -388,10 +442,17 @@ instalado. Os dados fictícios usados nos testes ficam só em `tests/`.
 ```
 bancoq/nucleo/      lógica sem interface (banco, LaTeX, prova, exportação, importador…)
 bancoq/interface/   telas em PySide6
+bancoq/ia/          importação de PDFs com o Claude: pacote, análise do PDF, TikZ, comandos
 bancoq/recursos/    MathJax, página da prévia, modelo genérico, ícone
+.claude/skills/     skill importar-pdf do Claude Code (passo a passo e referências)
+bancoq-ia           atalho das ferramentas da importação (cria o ambiente .venv-ia)
 tests/              pytest e dados fictícios
 empacotamento/      spec do PyInstaller e scripts de build
 ```
+
+As ferramentas da importação também rodam à mão, para conferir um PDF:
+`./bancoq-ia preparar prova.pdf` mostra as questões encontradas e grava os
+recortes em `trabalho/`; `./bancoq-ia --help` lista os comandos.
 
 ---
 

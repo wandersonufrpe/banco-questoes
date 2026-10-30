@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# Ferramentas da importação de PDFs com o Claude Code: ./bancoq-ia <comando> ...
+#
+# Na primeira vez cria o ambiente .venv-ia (Python 3.10 ou mais novo) com o
+# PyMuPDF e o SymPy. Funciona no Linux e no Windows (Git Bash, que o Claude Code usa).
+#   ./bancoq-ia python arquivo.py   roda um script com esse Python (ex.: contas no SymPy)
+set -euo pipefail
+RAIZ="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VENV="$RAIZ/.venv-ia"
+
+python_do_venv() {
+    if [ -x "$VENV/bin/python" ]; then echo "$VENV/bin/python"
+    elif [ -x "$VENV/Scripts/python.exe" ]; then echo "$VENV/Scripts/python.exe"
+    fi
+}
+
+PY="$(python_do_venv)"
+if [ -z "$PY" ]; then
+    BASE=""
+    for c in python3 python py; do
+        if command -v "$c" >/dev/null 2>&1 && "$c" -c 'import sys; sys.exit(sys.version_info < (3, 10))' >/dev/null 2>&1; then
+            BASE="$c"; break
+        fi
+    done
+    if [ -z "$BASE" ]; then
+        echo '{"erro": "Python 3.10 ou mais novo não encontrado. Instale em python.org (no Windows, marque \"Add python.exe to PATH\") e tente de novo."}'
+        exit 2
+    fi
+    echo "Criando o ambiente .venv-ia (só na primeira vez)..." >&2
+    "$BASE" -m venv "$VENV" >&2
+    PY="$(python_do_venv)"
+    "$PY" -m pip install --quiet --disable-pip-version-check -r "$RAIZ/requirements-ia.txt" >&2
+fi
+
+if [ "${1:-}" = "python" ]; then
+    shift
+    exec "$PY" "$@"
+fi
+exec "$PY" "$RAIZ/bancoq_ia.py" "$@"

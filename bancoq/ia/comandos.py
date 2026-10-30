@@ -65,6 +65,13 @@ def pasta_trabalho_pacote(pacote: Pacote) -> Path:
     return pasta_trabalho() / pacote.nome
 
 
+def rascunho(pacote: Pacote) -> Pacote:
+    """Área de trabalho do Claude, com a mesma organização do pacote (questoes/,
+    recortes/, figuras/), dentro do repositório: ali ele lê e escreve sem pedir
+    licença. ``entregar`` copia para o pacote do banco o que estiver pronto."""
+    return Pacote(pasta_trabalho_pacote(pacote), titulo=pacote.titulo, pdf=pacote.pdf)
+
+
 def _banco_do_pacote(pacote: Pacote) -> Path:
     # <banco>/entrada/pacotes/<nome>
     return pacote.pasta.parent.parent.parent
@@ -140,7 +147,7 @@ def cmd_pacotes(banco: str | None = None) -> dict:
         decisoes = pac.decisoes()
         saida.append({
             "nome": pac.nome, "titulo": pac.titulo, "situacao": pac.situacao,
-            "previstas": pac.previstas, "escritas": len(pac.ids()), "decididas": len(decisoes),
+            "previstas": pac.previstas, "entregues": len(pac.ids()), "decididas": len(decisoes),
         })
     return {"banco": str(pasta), "pacotes": saida}
 
@@ -164,29 +171,29 @@ def cmd_preparar(pdf: str, banco: str | None = None, nome: str | None = None,
             raise ErroComando(f"Já existe o pacote {nome!r} de outro PDF. Use --nome para escolher outro nome.")
     else:
         pac = None
-    trabalho = pasta_trabalho() / nome
     with ferramentas_pdf.Documento(arq_pdf) as doc:
         if pac is None:
             pac = Pacote.criar(pasta, titulo=titulo or arq_pdf.stem, pdf=arq_pdf.name, sha256=sha,
                                paginas=doc.num_paginas)
         elif titulo:
             pac.titulo = titulo
+        rasc = rascunho(pac)
         regioes = doc.regioes()
         pac.previstas = len(regioes) or pac.previstas
         pac.paginas = doc.num_paginas
         pac.salvar()
         questoes = []
         for reg in regioes:
-            recorte = pac.pasta_recortes / f"{reg.ident}.png"
+            recorte = rasc.pasta_recortes / f"{reg.ident}.png"
             if reg.partes and (refazer or not recorte.exists()):
                 ferramentas_pdf.recortar(doc.doc, reg.partes, recorte, DPI_RECORTE)
             texto = ferramentas_pdf.texto_das_partes(doc.doc, reg.partes)
-            arq_texto = trabalho / "texto" / f"{reg.ident}.txt"
+            arq_texto = rasc.pasta / "texto" / f"{reg.ident}.txt"
             arq_texto.parent.mkdir(parents=True, exist_ok=True)
             arq_texto.write_text(texto + "\n", encoding="utf-8")
             figuras = []
             for fig in reg.figuras:
-                destino = pac.caminho_figura(reg.ident, fig.numero, "original")
+                destino = rasc.caminho_figura(reg.ident, fig.numero, "original")
                 if refazer or not destino.exists():
                     ferramentas_pdf.recortar(doc.doc, [ferramentas_pdf.Parte(fig.pagina, fig.caixa)],
                                              destino, DPI_FIGURA)
@@ -199,7 +206,8 @@ def cmd_preparar(pdf: str, banco: str | None = None, nome: str | None = None,
                 "texto": str(arq_texto),
                 "texto_util": len(texto.strip()) * 1000 / area >= 2,
                 "figuras": figuras,
-                "escrita": pac.arquivo_questao(reg.ident).exists(),
+                "escrita": rasc.arquivo_questao(reg.ident).exists(),
+                "entregue": pac.arquivo_questao(reg.ident).exists(),
             })
         dados_regioes = {
             "pdf": arq_pdf.name, "pdf_caminho": str(arq_pdf), "paginas": doc.num_paginas,
@@ -216,8 +224,8 @@ def cmd_preparar(pdf: str, banco: str | None = None, nome: str | None = None,
                       "leia as questões pelos recortes.")
     return {
         "pacote": str(pac.pasta), "nome": pac.nome, "titulo": pac.titulo,
-        "trabalho": str(trabalho), "paginas": pac.paginas,
-        "paginas_com_gabarito": gabarito,
+        "trabalho": str(rasc.pasta), "escreva_as_questoes_em": str(rasc.pasta_questoes),
+        "paginas": pac.paginas, "paginas_com_gabarito": gabarito,
         "questoes": questoes, "avisos": avisos,
     }
 
@@ -252,13 +260,14 @@ def cmd_recortar(ref: str, ident: str, partes: list[str], banco: str | None = No
                  figura: int | None = None) -> dict:
     """Refaz o recorte de uma questão (ou de uma figura dela) a partir de caixas dadas."""
     pac = abrir_pacote(ref, banco)
+    rasc = rascunho(pac)
     arq_pdf = _pdf_do_pacote(pac)
     lista = [_ler_parte(p) for p in partes]
     if figura is None:
-        destino = pac.pasta_recortes / f"{ident}.png"
+        destino = rasc.pasta_recortes / f"{ident}.png"
         dpi = DPI_RECORTE
     else:
-        destino = pac.caminho_figura(ident, figura, "original")
+        destino = rasc.caminho_figura(ident, figura, "original")
         dpi = DPI_FIGURA
     with ferramentas_pdf.pymupdf.open(arq_pdf) as doc:
         ferramentas_pdf.recortar(doc, lista, destino, dpi)
@@ -287,10 +296,10 @@ def cmd_recortar(ref: str, ident: str, partes: list[str], banco: str | None = No
 
 def cmd_remover_figura(ref: str, ident: str, figura: int, banco: str | None = None) -> dict:
     """Apaga o recorte de uma figura detectada por engano (e o desenho TikZ dela)."""
-    pac = abrir_pacote(ref, banco)
+    rasc = rascunho(abrir_pacote(ref, banco))
     removidos = []
     for tipo in ("original", "tikz"):
-        p = pac.caminho_figura(ident, figura, tipo)
+        p = rasc.caminho_figura(ident, figura, tipo)
         if p.exists():
             p.unlink()
             removidos.append(str(p))
@@ -315,21 +324,21 @@ def cmd_tikz(ref: str, ident: str, banco: str | None = None, arquivo: str | None
     compara com a figura ``figura`` do PDF.
     """
     pac = abrir_pacote(ref, banco)
-    pasta_banco = _banco_do_pacote(pac)
-    trabalho = pasta_trabalho_pacote(pac)
-    cache = trabalho / "tikz"
-    comparar = trabalho / "comparar"
-    q = pac.questao(ident) if pac.arquivo_questao(ident).exists() else None
-    preambulo = _preambulo_figuras(pasta_banco, q)
+    rasc = rascunho(pac)
+    cache = rasc.pasta / "tikz"
+    comparar = rasc.pasta / "comparar"
+    q = rasc.questao(ident) if rasc.arquivo_questao(ident).exists() else None
+    preambulo = _preambulo_figuras(_banco_do_pacote(pac), q)
     resultados = []
 
     def registrar(codigo: str, campo: str, numero: int | None, copiar: bool) -> None:
         r = {"campo": campo, "figura": numero, **_compilar(codigo, preambulo, cache)}
         if r["ok"] and numero is not None:
-            original = pac.figura_original(ident, numero)
+            original = rasc.figura_original(ident, numero)
             png = Path(r["png"])
             if copiar:
-                destino = pac.caminho_figura(ident, numero, "tikz")
+                destino = rasc.caminho_figura(ident, numero, "tikz")
+                destino.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(png, destino)
                 r["png"] = str(destino)
             if original:
@@ -347,7 +356,7 @@ def cmd_tikz(ref: str, ident: str, banco: str | None = None, arquivo: str | None
             registrar(codigo, f"arquivo {Path(arquivo).name}", figura if k == 0 else None, False)
         return {"questao": ident, "figuras": resultados}
     if q is None:
-        raise ErroComando(f"A questão {ident} ainda não foi escrita ({pac.arquivo_questao(ident)}).")
+        raise ErroComando(f"A questão {ident} ainda não foi escrita ({rasc.arquivo_questao(ident)}).")
     desenhadas = q.figuras_desenhadas()
     k = 0
     campos = [("enunciado", q.enunciado)] + [(f"item {i + 1}", it.texto) for i, it in enumerate(q.itens)]
@@ -394,16 +403,18 @@ def _checar_latex(pac: Pacote, q: QuestaoPacote, pasta_banco: Path, info) -> str
 
 def cmd_validar(ref: str, ids: list[str] | None = None, banco: str | None = None,
                 compilar: bool = False) -> dict:
+    """Confere as questões escritas no rascunho (as que o Claude ainda vai entregar)."""
     pac = abrir_pacote(ref, banco)
+    rasc = rascunho(pac)
     pasta_banco = _banco_do_pacote(pac)
     info = _tex() if compilar else None
     saida = {}
-    for ident in ids or pac.ids():
-        if not pac.arquivo_questao(ident).exists():
-            saida[ident] = {"erros": ["arquivo da questão não existe"], "avisos": []}
+    for ident in ids or rasc.ids():
+        if not rasc.arquivo_questao(ident).exists():
+            saida[ident] = {"erros": [f"{rasc.arquivo_questao(ident)} não existe"], "avisos": []}
             continue
-        q = pac.questao(ident)
-        problemas = validar_questao(q, pac)
+        q = rasc.questao(ident)
+        problemas = validar_questao(q, rasc)
         erros = [p.mensagem for p in problemas if p.gravidade == "erro"]
         avisos = [p.mensagem for p in problemas if p.gravidade == "aviso"]
         if compilar and not erros:
@@ -415,37 +426,86 @@ def cmd_validar(ref: str, ids: list[str] | None = None, banco: str | None = None
     return {"pacote": pac.nome, "questoes": saida, "total": len(saida), "com_erro": com_erro}
 
 
+def _copiar(origem: Path, destino: Path) -> None:
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    tmp = destino.with_name(destino.name + ".tmp")
+    shutil.copyfile(origem, tmp)
+    os.replace(tmp, destino)
+
+
+def cmd_entregar(ref: str, ids: list[str] | None = None, banco: str | None = None,
+                 compilar: bool = False, forcar: bool = False) -> dict:
+    """Copia para o pacote do banco (caixa de entrada do app) as questões sem erro.
+
+    Primeiro as imagens, por último o texto: o app só vê a questão quando ela está
+    completa. Questões já decididas no app não são reenviadas (com ``forcar``, uma
+    questão rejeitada volta para a caixa de entrada).
+    """
+    pac = abrir_pacote(ref, banco)
+    rasc = rascunho(pac)
+    validacao = cmd_validar(ref, ids, banco, compilar)
+    decisoes = pac.decisoes()
+    entregues, puladas = [], {}
+    for ident, r in validacao["questoes"].items():
+        if r["erros"]:
+            puladas[ident] = "tem erro: " + "; ".join(r["erros"])
+            continue
+        d = decisoes.get(ident)
+        if d is not None and (d.situacao == "aprovada" or not forcar):
+            puladas[ident] = f"já {d.situacao} no aplicativo"
+            continue
+        if pac.pasta_figuras.is_dir():
+            for antigo in list(pac.pasta_figuras.glob(f"{ident}-*.png")):
+                antigo.unlink()
+        if rasc.recorte(ident):
+            _copiar(rasc.recorte(ident), pac.pasta_recortes / f"{ident}.png")
+        if rasc.pasta_figuras.is_dir():
+            for fig in rasc.pasta_figuras.glob(f"{ident}-*.png"):
+                _copiar(fig, pac.pasta_figuras / fig.name)
+        _copiar(rasc.arquivo_questao(ident), pac.arquivo_questao(ident))
+        if d is not None:
+            pac.desfazer_decisao(ident)
+        entregues.append(ident)
+    return {"pacote": str(pac.pasta), "entregues": entregues, "puladas": puladas,
+            "avisos": {i: r["avisos"] for i, r in validacao["questoes"].items()
+                       if i in entregues and r["avisos"]}}
+
+
 def cmd_status(ref: str, banco: str | None = None) -> dict:
     pac = abrir_pacote(ref, banco)
+    rasc = rascunho(pac)
     regioes = _ler_regioes(pac).get("questoes", [])
-    escritas = set(pac.ids())
+    escritas = set(rasc.ids())
+    entregues = set(pac.ids())
     previstas = [r["id"] for r in regioes]
-    com_erro = []
-    for ident in sorted(escritas):
-        if tem_erro(validar_questao(pac.questao(ident), pac)):
-            com_erro.append(ident)
+    com_erro = [i for i in sorted(escritas) if tem_erro(validar_questao(rasc.questao(i), rasc))]
+    alteradas = [i for i in sorted(escritas & entregues)
+                 if rasc.arquivo_questao(i).read_bytes() != pac.arquivo_questao(i).read_bytes()]
     decisoes = pac.decisoes()
     return {
         "pacote": str(pac.pasta), "titulo": pac.titulo, "situacao": pac.situacao,
+        "trabalho": str(rasc.pasta),
         "previstas": len(previstas) or pac.previstas,
         "escritas": len(escritas),
+        "entregues": len(entregues),
         "faltando": [i for i in previstas if i not in escritas],
         "com_erro": com_erro,
+        "nao_entregues": sorted(escritas - entregues),
+        "alteradas_depois_de_entregar": alteradas,
         "aprovadas": sorted(i for i, d in decisoes.items() if d.situacao == "aprovada"),
         "rejeitadas": sorted(i for i, d in decisoes.items() if d.situacao == "rejeitada"),
-        "trabalho": str(pasta_trabalho_pacote(pac)),
     }
 
 
 def cmd_finalizar(ref: str, banco: str | None = None, compilar: bool = True) -> dict:
-    """Confere todas as questões e marca o pacote como pronto para revisão no app."""
+    """Confere e entrega todas as questões e marca o pacote como pronto para revisão no app."""
     r = cmd_validar(ref, None, banco, compilar=compilar)
-    pac = abrir_pacote(ref, banco)
-    faltando = cmd_status(ref, banco)["faltando"]
     if r["com_erro"]:
         return {"pronto": False, "motivo": "há questões com erro", "com_erro": r["com_erro"],
                 "questoes": {i: r["questoes"][i] for i in r["com_erro"]}}
+    e = cmd_entregar(ref, None, banco, compilar=False)
+    pac = abrir_pacote(ref, banco)
     pac.situacao = SITUACAO_PRONTO
     pac.salvar()
-    return {"pronto": True, "pacote": str(pac.pasta), "questoes": r["total"],
-            "faltando_no_pdf": faltando}
+    return {"pronto": True, "pacote": str(pac.pasta), "entregues_agora": e["entregues"],
+            "no_pacote": len(pac.ids()), "faltando_no_pdf": cmd_status(ref, banco)["faltando"]}
