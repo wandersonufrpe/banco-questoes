@@ -504,3 +504,36 @@ def test_cli_tikz_e_validar_compilando(banco, tmp_path, monkeypatch, capsys):
     codigo, r = _rodar(capsys, "--banco", b, "validar", "ficticia", "q002", "--compilar")
     assert codigo == 1 and "Resolução" in r["questoes"]["q002"]["erros"][0]
     shutil.rmtree(tmp_path / "trabalho")
+
+
+# =====================================================================
+# Relatório de conferência (aba do app)
+# =====================================================================
+def test_relatorio_e_atencao(banco, tmp_path):
+    from bancoq.ia.pacote import Decisao
+    from bancoq.ia.relatorio import precisa_atencao, relatorio_html
+
+    pac = Pacote.criar(pasta_pacotes(banco.pasta) / "rel", titulo="Prova")
+    q = ler_questao(QUESTAO_OK, "q004")
+    assert precisa_atencao(q, validar_questao(q)) == []
+    fig = pymupdf.open()
+    fig.new_page(width=50, height=30)
+    fig[0].get_pixmap().save(pac.caminho_figura("q004", 1, "original"))
+    fig.close()
+    h = relatorio_html(q, pac, validar_questao(q, pac), decisao=Decisao("aprovada", "2026-01-01", 9),
+                       categoria="Aritmética > Frações", categoria_nova=True, tags_novas=["soma"],
+                       preambulo_faltando=[r"\usepackage{tikz}"], parecidas=[(3, 91.5)])
+    assert "questão nº 9 no banco" in h and "será criada ao aprovar" in h and "soma" in h
+    assert "falta no preâmbulo" in h and "questão nº 3 do banco (91.5%)" in h
+    assert "q004-1-original.png" in h and "(sem imagem)" in h          # original sim, TikZ não
+    assert "Duas resoluções" in h
+    q.resposta_independente = "A"
+    q.gabarito_pdf = "C"
+    q.confianca = "baixa"
+    q.figuras[0].situacao = FIGURA_AJUSTAR
+    q.avisos.append("enunciado ambíguo")
+    motivos = precisa_atencao(q, validar_questao(q))
+    assert motivos == ["resoluções discordam", "diverge do gabarito", "confiança baixa",
+                       "figura para ajustar", "aviso do Claude"]
+    h = relatorio_html(q, pac, [])
+    assert "✖" in h and "enunciado ambíguo" in h and "precisa de ajuste" in h

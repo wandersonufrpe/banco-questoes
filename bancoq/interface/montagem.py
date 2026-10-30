@@ -313,6 +313,9 @@ class TelaMontagem(QWidget):
         lc.addLayout(h)
         esquerda.addWidget(cima)
         self.previa = PreviaWeb()
+        self._qid_previa: int | None = None
+        self.ctx.figuras.figura_pronta.connect(
+            lambda: self._qid_previa is not None and self._mostrar_previa(self._qid_previa))
         esquerda.addWidget(self.previa)
         esquerda.setSizes([520, 260])
         divisor.addWidget(esquerda)
@@ -622,11 +625,13 @@ class TelaMontagem(QWidget):
         self._mostrar_previa(qid)
 
     def _mostrar_previa(self, qid: int) -> None:
+        self._qid_previa = qid
         q = self._questoes([qid]).get(qid)
         if q is None:
             return
         info = f'<div class="info">Nº {q.id}{" · já está na prova" if qid in self.m.ids() else ""}</div>'
-        self.previa.mostrar(info + html_questao(q, resolvedor_imagens(self.ctx.midia)))
+        self.previa.mostrar(info + html_questao(q, resolvedor_imagens(self.ctx.midia),
+                                                resolver_tikz=self.ctx.figuras.resolvedor()))
 
     def _adicionar(self, ids: list[int]) -> None:
         n = self.m.adicionar_manual(ids)

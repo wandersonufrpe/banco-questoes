@@ -385,3 +385,29 @@ está registrada aqui, por etapa.
   fica registrada para o professor decidir.
 - **Categorias para banco vazio:** a skill sugere um primeiro nível fixo (Aritmética,
   Álgebra, Funções, Geometria Plana…) para as importações começarem organizadas.
+
+## Etapa 10: caixa de entrada e TikZ na prévia rápida
+
+- **Aprovação pelo próprio formulário do cadastro.** A caixa de entrada usa a
+  mesma tela de cadastro, em "modo aprovação": o professor corrige o que quiser e
+  "Aprovar e incluir no banco" passa pelas mesmas checagens de sempre (LaTeX e
+  duplicadas). Não há um segundo caminho de gravação para manter.
+- **O app nunca altera o que o Claude escreveu:** as decisões ficam em
+  `decisoes.json` (aprovada com o número da questão no banco, ou rejeitada com o
+  motivo). Questão aprovada não pode ser aprovada de novo (evita duplicar).
+- **Preâmbulo:** se a questão pede linhas que o preâmbulo do banco não tem (em
+  geral `\usepackage{tikz}`), o app pergunta antes de aprovar se deve
+  acrescentá-las em Configurações. Sem isso a checagem de LaTeX falharia.
+- **Atualização automática:** a cada 4 s, só com a aba visível, o app compara datas
+  e nomes dos arquivos do pacote; se o Claude entregou algo novo, a lista se
+  atualiza sem perder o que está sendo editado.
+- **Arquivar:** pacote com tudo decidido pode ir para `entrada/concluidos/` (o app
+  oferece). Nada é apagado.
+- **TikZ na prévia rápida:** cada figura é compilada sozinha (classe `standalone`,
+  com as linhas de TikZ do modelo e o preâmbulo do banco), uma por vez, em segundo
+  plano, e o PNG fica num cache na pasta de configurações deste computador
+  (`cache-tikz`), indexado pelo conteúdo. A prévia mostra "desenhando…" e se
+  atualiza sozinha; erros aparecem no lugar da figura. Vale para todas as telas
+  com prévia rápida.
+- **Autoteste:** ganhou a verificação "Caixa de entrada" (lê um pacote fictício),
+  para garantir que o executável inclui os módulos novos.

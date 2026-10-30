@@ -237,6 +237,7 @@ class TelaImportacao(QWidget):
             s.connect(self._editou)
         ctx.sinais.config_alterada.connect(lambda: self.previa.definir_macros(extrair_macros(ctx.config.preambulo)))
         self.previa.definir_macros(extrair_macros(ctx.config.preambulo))
+        ctx.figuras.figura_pronta.connect(self._atualizar_previa)
         self._atualizar_estado()
 
     # =========================================================================
@@ -468,7 +469,8 @@ class TelaImportacao(QWidget):
         if self.atual is None:
             return
         q = self.entradas[self.atual].questao
-        self.previa.mostrar(html_questao(q, resolvedor_imagens(self.ctx.midia)))
+        self.previa.mostrar(html_questao(q, resolvedor_imagens(self.ctx.midia),
+                                         resolver_tikz=self.ctx.figuras.resolvedor()))
 
     # =========================================================================
     # ajustes das divisões

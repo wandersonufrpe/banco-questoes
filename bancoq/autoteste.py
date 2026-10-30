@@ -127,9 +127,25 @@ def executar_autoteste(app) -> int:
         assert not rel.erros, rel.erros
         return f"{info.descricao()} — {len(rel.pdfs)} PDF(s)"
 
+    def caixa_entrada():
+        from .ia.pacote import Pacote, ler_questao, pasta_pacotes, validar_questao
+        from .ia.relatorio import relatorio_html
+        from .interface.caixa_entrada import TelaCaixaEntrada  # noqa: F401 - módulo empacotado?
+
+        repo = contexto["repo"]
+        pac = Pacote.criar(pasta_pacotes(repo.banco.pasta) / "autoteste", titulo="Autoteste")
+        q = ler_questao("@tipo: multipla\n@resposta: B\n@@enunciado\nQuanto vale $\\frac{1}{2}+\\frac{1}{2}$?\n"
+                        "@@alternativa\n$2$\n@@alternativa correta\n$1$\n@@resolucao\nSoma.", "q001")
+        pac.gravar_questao(q)
+        lida = pac.questao("q001")
+        assert lida.enunciado.startswith(r"Quanto vale $\frac") and lida.itens[1].correta
+        assert not [p for p in validar_questao(lida) if p.gravidade == "erro"]
+        assert "Resolução principal" in relatorio_html(lida, pac, [])
+        return "pacote lido e conferido"
+
     for nome, func in (("Recursos empacotados", recursos), ("SQLite/banco", banco), ("PyMuPDF", pymupdf),
                        ("rapidfuzz", rapidfuzz), ("Traduções do Qt", traducoes), ("Prévia (QtWebEngine + MathJax)", mathjax),
-                       ("TeX", tex)):
+                       ("Caixa de entrada", caixa_entrada), ("TeX", tex)):
         checar(nome, func)
 
     from . import __version__

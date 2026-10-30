@@ -83,6 +83,7 @@ class TelaBanco(QWidget):
             lambda: self.previa.definir_macros(extrair_macros(ctx.config.preambulo))
         )
         self.previa.definir_macros(extrair_macros(ctx.config.preambulo))
+        ctx.figuras.figura_pronta.connect(self._selecao_mudou)
         if ctx.somente_leitura:
             self.b_excluir.setEnabled(False)
         self._selecao_mudou()
@@ -142,7 +143,8 @@ class TelaBanco(QWidget):
                 f'{" · " + q.fonte if q.fonte else ""}{" · " + str(q.ano) if q.ano else ""}</div><hr class="sep">')
         if len(ids) > 1:
             info = f'<div class="info">{len(ids)} questões selecionadas; mostrando a primeira.</div>' + info
-        self.previa.mostrar(info + html_questao(q, resolvedor_imagens(self.ctx.midia)))
+        self.previa.mostrar(info + html_questao(q, resolvedor_imagens(self.ctx.midia),
+                                                resolver_tikz=self.ctx.figuras.resolvedor()))
 
     # -- ações --------------------------------------------------------------------------------
     def _editar(self) -> None:

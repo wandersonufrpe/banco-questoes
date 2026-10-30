@@ -121,9 +121,11 @@ class DialogoDuplicada(QDialog):
         macros = extrair_macros(ctx.config.preambulo)
         self.p_nova.definir_macros(macros)
         self.p_banco.definir_macros(macros)
-        self.p_nova.mostrar(html_questao(q, self._resolver))
+        self._q = q
+        self._resolver_tikz = ctx.figuras.resolvedor()
         self.combo.currentIndexChanged.connect(self._mostrar)
         self._mostrar()
+        ctx.figuras.figura_pronta.connect(self._mostrar)
         botoes = QDialogButtonBox()
         voltar = botoes.addButton("Voltar sem salvar", QDialogButtonBox.ButtonRole.RejectRole)
         salvar = botoes.addButton("Salvar mesmo assim", QDialogButtonBox.ButtonRole.AcceptRole)
@@ -133,12 +135,13 @@ class DialogoDuplicada(QDialog):
         lay.addWidget(botoes)
 
     def _mostrar(self) -> None:
+        self.p_nova.mostrar(self._html(self._q, self._resolver, resolver_tikz=self._resolver_tikz))
         qid = self.combo.currentData()
         q = self.ctx.repo.obter_questao(qid) if qid is not None else None
         if q is not None:
             caminho = self.ctx.repo.caminhos_categorias().get(q.categoria_id, "sem categoria")
             info = f'<div class="info">Nº {q.id} · {caminho} · alterada em {q.alterada_em}</div><hr class="sep">'
-            self.p_banco.mostrar(info + self._html(q, self._resolver))
+            self.p_banco.mostrar(info + self._html(q, self._resolver, resolver_tikz=self._resolver_tikz))
 
     def _salvar(self) -> None:
         self.salvar_mesmo_assim = True

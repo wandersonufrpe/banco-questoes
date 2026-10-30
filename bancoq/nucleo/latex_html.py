@@ -502,7 +502,7 @@ class _Conversor:
             return f'<img class="tikz" src="{html.escape(valor)}">'
         if estado == "pendente":
             return '<span class="aviso tikz-pendente">[desenhando a figura TikZ…]</span>'
-        return (f'<span class="aviso" title="{html.escape(valor)}">'
+        return (f'<span class="aviso tikz-erro" title="{html.escape(valor)}">'
                 f'[a figura TikZ não compilou: {html.escape(valor[:120])}]</span>')
 
     @staticmethod

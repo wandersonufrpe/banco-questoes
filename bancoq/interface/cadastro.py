@@ -44,12 +44,22 @@ def item_vazio(item: Item) -> bool:
 
 
 class TelaCadastro(QWidget):
+    """Formulário de uma questão com prévia.
+
+    Com ``modo_aprovacao`` (caixa de entrada), o botão de salvar vira "Aprovar e
+    incluir no banco", aparece "Rejeitar" e não há "Limpar" nem "Salvar e nova".
+    """
+
     questao_salva = Signal(int)
     estado_mudou = Signal()
+    rejeitar_pedido = Signal()
 
-    def __init__(self, ctx: Contexto, parent=None):
+    def __init__(self, ctx: Contexto, parent=None, modo_aprovacao: bool = False):
         super().__init__(parent)
         self.ctx = ctx
+        self.modo_aprovacao = modo_aprovacao
+        self.antes_de_salvar = None          # função () -> bool; False cancela o salvamento
+        self.preambulo_extra: list[str] = []  # linhas de preâmbulo da questão (figuras TikZ)
         self.questao_id: int | None = None
         self.questao_carregada: Questao | None = None
         self._base: tuple | None = None
@@ -205,6 +215,16 @@ class TelaCadastro(QWidget):
         baixo.addWidget(self.b_salvar_nova)
         baixo.addWidget(self.b_salvar)
         raiz.addLayout(baixo)
+        self.b_rejeitar = QPushButton("Rejeitar")
+        self.b_rejeitar.setToolTip("Descarta esta questão do pacote (ela não entra no banco)")
+        self.b_rejeitar.setVisible(False)
+        baixo.insertWidget(1, self.b_rejeitar)
+        if modo_aprovacao:
+            self.b_limpar.setVisible(False)
+            self.b_salvar_nova.setVisible(False)
+            self.b_rejeitar.setVisible(True)
+            self.b_salvar.setText("Aprovar e incluir no banco")
+            self.b_salvar.setToolTip("Confere o LaTeX e as duplicadas e grava a questão no banco (Ctrl+S)")
 
         # -- ligações -------------------------------------------------------------------------------
         for editor in (self.enunciado, self.resolucao, self.resposta):
@@ -234,6 +254,7 @@ class TelaCadastro(QWidget):
         self.b_salvar.clicked.connect(lambda: self.salvar(e_nova=False))
         self.b_salvar_nova.clicked.connect(lambda: self.salvar(e_nova=True))
         self.b_limpar.clicked.connect(self._limpar_clicado)
+        self.b_rejeitar.clicked.connect(self.rejeitar_pedido)
         atalho = QShortcut(QKeySequence.StandardKey.Save, self)
         atalho.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
         atalho.activated.connect(lambda: self.salvar(e_nova=False))
@@ -242,6 +263,7 @@ class TelaCadastro(QWidget):
         ctx.sinais.categorias_alteradas.connect(self.categoria.recarregar)
         ctx.sinais.tags_alteradas.connect(self._recarregar_sugestoes)
         ctx.sinais.questoes_alteradas.connect(self._recarregar_sugestoes)
+        ctx.figuras.figura_pronta.connect(self.atualizar_previa)
 
         if ctx.somente_leitura:
             for b in (self.b_salvar, self.b_salvar_nova):
@@ -380,6 +402,27 @@ class TelaCadastro(QWidget):
         self._preencher(q, categoria_nova)
         self.enunciado.setFocus()
 
+    def carregar_para_aprovacao(self, q: Questao, categoria_nova: CategoriaNova | None, titulo: str,
+                                preambulo_extra: list[str] | None = None) -> None:
+        """Mostra uma questão da caixa de entrada (ainda fora do banco)."""
+        self.preambulo_extra = list(preambulo_extra or [])
+        self.questao_id = None
+        self.questao_carregada = None
+        self._preencher(q, categoria_nova)
+        self.l_titulo.setText(titulo)
+        self.l_status.clear()
+
+    def esquecer_alteracoes(self) -> None:
+        """Considera o que está no formulário como o estado de partida (sem perguntar)."""
+        self._marcar_base()
+
+    def definir_acoes(self, habilitadas: bool, mensagem: str = "") -> None:
+        """Na caixa de entrada: liga/desliga Aprovar e Rejeitar (questão já decidida)."""
+        pode = habilitadas and not self.ctx.somente_leitura
+        self.b_salvar.setEnabled(pode)
+        self.b_rejeitar.setEnabled(pode)
+        self.l_status.setText(mensagem)
+
     def carregar_questao(self, q: Questao, como_nova: bool = False) -> None:
         """Mostra a questão para edição (ou uma cópia não salva, se ``como_nova``)."""
         if como_nova:
@@ -437,7 +480,8 @@ class TelaCadastro(QWidget):
         if not q.enunciado.strip() and not any(i.texto.strip() for i in q.itens) and not q.resolucao.strip():
             self.previa.mostrar_vazio("A prévia aparece aqui enquanto você digita.")
             return
-        self.previa.mostrar(html_questao(q, resolvedor_imagens(self.ctx.midia)))
+        self.previa.mostrar(html_questao(q, resolvedor_imagens(self.ctx.midia),
+                                         resolver_tikz=self.ctx.figuras.resolvedor(self.preambulo_extra)))
 
     def _recarregar_sugestoes(self) -> None:
         self.tags.definir_sugestoes(self.ctx.repo.nomes_tags())
@@ -526,6 +570,10 @@ class TelaCadastro(QWidget):
         if self.ctx.somente_leitura:
             QMessageBox.information(self, "Salvar", "O banco está aberto somente para leitura.")
             return
+        if not self.b_salvar.isEnabled():
+            return
+        if self.antes_de_salvar is not None and not self.antes_de_salvar():
+            return
         q, categoria_nova = self._questao_limpa()
         if not self._validar(q):
             return
@@ -608,6 +656,11 @@ class TelaCadastro(QWidget):
             self.ctx.sinais.categorias_alteradas.emit()
         self.ctx.sinais.questoes_alteradas.emit()
         self.ctx.sinais.tags_alteradas.emit()
+        if self.modo_aprovacao:
+            # a caixa de entrada registra a aprovação e passa para a próxima questão
+            self._marcar_base()
+            self.questao_salva.emit(qid)
+            return
         self.questao_salva.emit(qid)
         salva = self.ctx.repo.obter_questao(qid)
         if e_nova:

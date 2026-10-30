@@ -149,6 +149,7 @@ BancoQuestoes/
 ├── midia/               imagens (nome = hash do conteúdo, ex.: 3f9a1c2b7d4e8f01.png)
 ├── modelos/             modelos de prova (.tex)
 ├── backups/             backups automáticos (.zip)
+├── entrada/             caixa de entrada: provas preparadas pelo Claude (pacotes/ e concluidos/)
 └── banco.trava          existe só enquanto o banco está aberto
 ```
 
@@ -219,8 +220,9 @@ alterada no outro computador.
   Substituição). Dá para criar categorias ali mesmo; elas só são gravadas
   quando a questão for salva.
 - **Tags:** separadas por vírgula, com autocompletar.
-- **Prévia rápida:** atualiza enquanto você digita, usando o MathJax. O que o
-  MathJax não mostra (TikZ, por exemplo) aparece como "[use a prévia exata]".
+- **Prévia rápida:** atualiza enquanto você digita, usando o MathJax. Figuras
+  TikZ são compiladas em segundo plano (se houver TeX) e aparecem como imagem; o
+  que mais o MathJax não mostra aparece como "[use a prévia exata]".
 - **Prévia exata:** compila a questão com `pdflatex`, usando seu preâmbulo, e
   mostra o resultado como no PDF.
 - **Salvar no banco** (Ctrl+S) ou **Salvar e nova** (mantém tipo, categoria,
@@ -340,6 +342,37 @@ acompanhe o consumo com `/usage` no Claude Code.
 No aplicativo, as questões aparecem na aba **Caixa de entrada** (veja abaixo).
 Os rascunhos ficam em `trabalho/` no repositório e podem ser apagados quando a
 importação terminar.
+
+### Caixa de entrada
+
+A aba mostra, para o pacote escolhido (uma prova importada):
+
+- a **lista de questões**, com ● pendente, ✔ aprovada, ✖ rejeitada e ⚠ quando
+  algo merece atenção (resoluções que discordam, divergência com o gabarito,
+  confiança baixa, figura para ajustar, aviso do Claude);
+- o **recorte original do PDF** (botões − Ajustar + para o zoom);
+- o **formulário do cadastro já preenchido**, com a prévia rápida, a prévia exata
+  e a aba **Conferência**: resposta da resolução principal, da segunda resolução e
+  do gabarito do PDF, o que foi conferido no SymPy, a confiança, as figuras
+  originais ao lado do redesenho em TikZ, categorias e tags novas e possíveis
+  questões parecidas já existentes no banco.
+
+Corrija o que quiser no formulário e clique em **Aprovar e incluir no banco**: a
+questão passa pelas mesmas checagens do cadastro (LaTeX e duplicadas) e é
+gravada; categorias e tags novas só são criadas nesse momento. Se a questão usa
+TikZ e o preâmbulo do banco ainda não tem `\usepackage{tikz}`, o aplicativo
+oferece acrescentar a linha em *Configurações > Preâmbulo e macros*.
+**Rejeitar** descarta a questão (com um motivo opcional); *Voltar para pendente*
+desfaz uma rejeição. Depois de cada decisão a tela passa para a próxima pendente.
+
+A lista se atualiza sozinha enquanto o Claude entrega questões. Quando todas
+estiverem decididas, o aplicativo oferece **arquivar** o pacote (ele vai para
+`entrada/concluidos` dentro da pasta do banco). A aba mostra entre parênteses
+quantas questões esperam aprovação.
+
+Figuras TikZ também aparecem na **prévia rápida** (em todas as telas): cada
+figura é compilada em segundo plano com o TeX e guardada em cache; enquanto isso
+aparece "desenhando a figura TikZ…".
 
 ### Macros próprias
 

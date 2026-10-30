@@ -7,7 +7,9 @@ com IA (conferir o redesenho contra o original do PDF).
 from __future__ import annotations
 
 import hashlib
+import os
 import re
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -97,7 +99,14 @@ def compilar_figura(codigo: str, preambulo: str, info: InfoTex, pasta_cache: Pat
     trabalho = pasta_cache / f"tikz-{chave}"
     trabalho.mkdir(exist_ok=True)
     (trabalho / "figura.tex").write_text(documento_figura(codigo, preambulo), encoding="utf-8")
-    res = Compilacao(info, trabalho, "figura.tex", tempo_limite, passadas=1).executar()
+    try:
+        res = Compilacao(info, trabalho, "figura.tex", tempo_limite, passadas=1).executar()
+        if res.ok and res.pdf is not None:
+            with pymupdf.open(res.pdf) as doc:
+                doc[0].get_pixmap(dpi=dpi, alpha=False).save(trabalho / "figura.png")
+            os.replace(trabalho / "figura.png", png)   # o PNG só aparece pronto
+    finally:
+        shutil.rmtree(trabalho, ignore_errors=True)
     if not res.ok or res.pdf is None:
         if res.tempo_esgotado:
             erro = f"tempo limite de {tempo_limite:g} s esgotado"
@@ -108,6 +117,4 @@ def compilar_figura(codigo: str, preambulo: str, info: InfoTex, pasta_cache: Pat
         else:
             erro = "falha na compilação"
         return ResultadoFigura(False, None, erro, res.log)
-    with pymupdf.open(res.pdf) as doc:
-        doc[0].get_pixmap(dpi=dpi, alpha=False).save(png)
     return ResultadoFigura(True, png, "", res.log)

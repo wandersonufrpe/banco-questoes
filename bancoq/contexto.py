@@ -33,6 +33,17 @@ class Contexto:
         self.trava_sessao: str | None = None
         self._tex: InfoTex | None = None
         self._tex_procurado = False
+        self._figuras = None
+
+    # -- figuras TikZ da prévia rápida -------------------------------------------------
+    @property
+    def figuras(self):
+        """Compilação das figuras TikZ em segundo plano (GerenciadorFiguras)."""
+        if self._figuras is None:
+            from .interface.figuras_tikz import GerenciadorFiguras
+
+            self._figuras = GerenciadorFiguras(self)
+        return self._figuras
 
     # -- TeX -----------------------------------------------------------------------
     def tex(self) -> InfoTex | None:

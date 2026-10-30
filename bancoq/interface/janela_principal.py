@@ -67,6 +67,22 @@ class JanelaPrincipal(QMainWindow):
         self.abas.addTab(self.importacao, "Importação")
         self.telas_extras.append(self.importacao)
 
+        from .caixa_entrada import TelaCaixaEntrada
+
+        self.caixa = TelaCaixaEntrada(self.ctx)
+        self.abas.addTab(self.caixa, "Caixa de entrada")
+        self.telas_extras.append(self.caixa)
+        self.caixa.pendentes_mudou.connect(self._pendentes_caixa)
+        self.caixa.mensagem.connect(lambda m: self.statusBar().showMessage(m, 8000))
+        self._pendentes_caixa(self.caixa.total_pendentes(), inicio=True)
+
+    def _pendentes_caixa(self, n: int, inicio: bool = False) -> None:
+        indice = self.abas.indexOf(self.caixa)
+        self.abas.setTabText(indice, f"Caixa de entrada ({n})" if n else "Caixa de entrada")
+        if inicio and n:
+            self.statusBar().showMessage(
+                f"Há {n} questão(ões) preparada(s) pelo Claude esperando aprovação na Caixa de entrada.", 15000)
+
     def _abrir_no_cadastro(self, q, como_nova: bool) -> None:
         if not como_nova and self.cadastro.questao_id == q.id and not self.cadastro.modificado():
             self.abas.setCurrentWidget(self.cadastro)
